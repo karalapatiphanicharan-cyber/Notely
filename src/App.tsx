@@ -17,9 +17,9 @@ function App() {
         <Routes>
           <Route path="/" element={<Home />} />
           <Route path="/notes" element={<Home />} />
-          <Route path="/favorites" element={<div>Favorites (Phase 3)</div>} />
-          <Route path="/archive" element={<div>Archive (Phase 3)</div>} />
-          <Route path="/trash" element={<div>Trash (Phase 3)</div>} />
+          <Route path="/favorites" element={<Home />} />
+          <Route path="/archive" element={<Home />} />
+          <Route path="/trash" element={<Home />} />
         </Routes>
       </MainLayout>
     </Router>

@@ -10,12 +10,17 @@ interface NotesState {
 
   loadNotes: () => Promise<void>;
   createNote: () => Promise<void>;
-  updateNote: (id: string, updates: Partial<Pick<Note, 'title' | 'content'>>) => Promise<void>;
+  updateNote: (id: string, updates: Partial<Note>) => Promise<void>;
   deleteNote: (id: string) => Promise<void>;
+  restoreNote: (id: string) => Promise<void>;
+  permanentlyDeleteNote: (id: string) => Promise<void>;
+  togglePin: (id: string) => Promise<void>;
+  toggleFavorite: (id: string) => Promise<void>;
+  toggleArchive: (id: string) => Promise<void>;
   selectNote: (id: string | null) => void;
   setSearchQuery: (query: string) => void;
   clearSearch: () => void;
-  getFilteredNotes: () => Note[];
+  getFilteredNotes: (path: string) => Note[];
 }
 
 const WELCOME_NOTE: Note = {
@@ -24,6 +29,10 @@ const WELCOME_NOTE: Note = {
   content: 'Welcome to Notely!\nStart writing your ideas here.',
   createdAt: Date.now(),
   updatedAt: Date.now(),
+  isPinned: false,
+  isFavorite: false,
+  isArchived: false,
+  isTrashed: false,
 };
 
 // Map to track debounce timeouts per note ID
@@ -56,7 +65,16 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     try {
       const notes = await notesRepository.getAllNotes();
 
-      if (notes.length === 0) {
+      // Migration and normalization
+      const normalizedNotes = notes.map(note => ({
+        ...note,
+        isPinned: note.isPinned ?? false,
+        isFavorite: note.isFavorite ?? false,
+        isArchived: note.isArchived ?? false,
+        isTrashed: note.isTrashed ?? false,
+      }));
+
+      if (normalizedNotes.length === 0) {
         await notesRepository.saveNote(WELCOME_NOTE);
         set({
           notes: [WELCOME_NOTE],
@@ -64,10 +82,9 @@ export const useNotesStore = create<NotesState>((set, get) => ({
           isLoading: false
         });
       } else {
-        const sortedNotes = [...notes].sort((a, b) => b.updatedAt - a.updatedAt);
         set({
-          notes: sortedNotes,
-          selectedNoteId: sortedNotes[0].id,
+          notes: normalizedNotes,
+          selectedNoteId: normalizedNotes.find(n => !n.isArchived && !n.isTrashed)?.id || normalizedNotes[0].id,
           isLoading: false
         });
       }
@@ -77,11 +94,30 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     }
   },
 
-  getFilteredNotes: () => {
+  getFilteredNotes: (path: string) => {
     const { notes, searchQuery } = get();
     const query = searchQuery.trim().toLowerCase();
 
-    const sortedNotes = [...notes].sort((a, b) => b.updatedAt - a.updatedAt);
+    let filtered: Note[];
+
+    if (path === '/favorites') {
+      filtered = notes.filter(n => n.isFavorite && !n.isTrashed);
+    } else if (path === '/archive') {
+      filtered = notes.filter(n => n.isArchived && !n.isTrashed);
+    } else if (path === '/trash') {
+      filtered = notes.filter(n => n.isTrashed);
+    } else {
+      // Home or All Notes
+      filtered = notes.filter(n => !n.isArchived && !n.isTrashed);
+    }
+
+    const sortedNotes = [...filtered].sort((a, b) => {
+      // Pinned notes first
+      if (a.isPinned && !b.isPinned) return -1;
+      if (!a.isPinned && b.isPinned) return 1;
+      // Then by updatedAt descending
+      return b.updatedAt - a.updatedAt;
+    });
 
     if (!query) return sortedNotes;
 
@@ -98,6 +134,10 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       content: '',
       createdAt: Date.now(),
       updatedAt: Date.now(),
+      isPinned: false,
+      isFavorite: false,
+      isArchived: false,
+      isTrashed: false,
     };
 
     try {
@@ -142,11 +182,25 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   },
 
   deleteNote: async (id) => {
-    const { selectedNoteId, getFilteredNotes } = get();
-    const filteredBeforeDelete = getFilteredNotes();
+    const { notes } = get();
+    const note = notes.find(n => n.id === id);
+    if (!note) return;
+
+    if (note.isTrashed) {
+      await get().permanentlyDeleteNote(id);
+    } else {
+      await get().updateNote(id, { isTrashed: true, isPinned: false });
+    }
+  },
+
+  restoreNote: async (id) => {
+    await get().updateNote(id, { isTrashed: false });
+  },
+
+  permanentlyDeleteNote: async (id) => {
+    const { selectedNoteId } = get();
 
     try {
-      // Flush any pending updates for this note before deleting
       const timeout = updateTimeouts.get(id);
       if (timeout) {
         clearTimeout(timeout);
@@ -157,21 +211,34 @@ export const useNotesStore = create<NotesState>((set, get) => ({
 
       set((state) => ({
         notes: state.notes.filter((note) => note.id !== id),
+        selectedNoteId: selectedNoteId === id ? null : selectedNoteId
       }));
-
-      const filteredAfterDelete = getFilteredNotes();
-
-      if (selectedNoteId === id) {
-        if (filteredAfterDelete.length > 0) {
-          const deletedIndex = filteredBeforeDelete.findIndex(n => n.id === id);
-          const nextSelect = filteredAfterDelete[deletedIndex] || filteredAfterDelete[filteredAfterDelete.length - 1];
-          set({ selectedNoteId: nextSelect.id });
-        } else {
-          set({ selectedNoteId: null });
-        }
-      }
     } catch (error) {
-      console.error('Failed to delete note:', error);
+      console.error('Failed to permanently delete note:', error);
+    }
+  },
+
+  togglePin: async (id) => {
+    const { notes } = get();
+    const note = notes.find(n => n.id === id);
+    if (note) {
+      await get().updateNote(id, { isPinned: !note.isPinned });
+    }
+  },
+
+  toggleFavorite: async (id) => {
+    const { notes } = get();
+    const note = notes.find(n => n.id === id);
+    if (note) {
+      await get().updateNote(id, { isFavorite: !note.isFavorite });
+    }
+  },
+
+  toggleArchive: async (id) => {
+    const { notes } = get();
+    const note = notes.find(n => n.id === id);
+    if (note) {
+      await get().updateNote(id, { isArchived: !note.isArchived });
     }
   },
 
@@ -189,12 +256,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   setSearchQuery: (query) => {
     set({ searchQuery: query });
 
-    const { selectedNoteId, getFilteredNotes } = get();
-    const filteredNotes = getFilteredNotes();
-
-    if (selectedNoteId && !filteredNotes.some(n => n.id === selectedNoteId)) {
-      set({ selectedNoteId: filteredNotes.length > 0 ? filteredNotes[0].id : null });
-    }
+    // We don't need to select a new note here as components handle filtering
   },
 
   clearSearch: () => set({ searchQuery: '' }),

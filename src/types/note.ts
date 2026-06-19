@@ -4,4 +4,8 @@ export interface Note {
   content: string;
   createdAt: number;
   updatedAt: number;
+  isPinned?: boolean;
+  isFavorite?: boolean;
+  isArchived?: boolean;
+  isTrashed?: boolean;
 }
