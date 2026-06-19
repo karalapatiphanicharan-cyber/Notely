@@ -209,9 +209,11 @@ export function RichTextEditor({ content, onChange, disabled }: RichTextEditorPr
       }),
       Underline,
       Link.configure({
-        openOnClick: false,
+        openOnClick: true,
         HTMLAttributes: {
           class: 'text-blue-600 underline hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300',
+          target: '_blank',
+          rel: 'noopener noreferrer nofollow',
         },
       }),
       Placeholder.configure({
@@ -222,7 +224,7 @@ export function RichTextEditor({ content, onChange, disabled }: RichTextEditorPr
     content,
     editorProps: {
       attributes: {
-        class: 'focus:outline-none min-h-full',
+        class: cn('focus:outline-none min-h-full', disabled && 'cursor-default'),
       },
     },
     onUpdate: ({ editor }) => {
@@ -233,11 +235,11 @@ export function RichTextEditor({ content, onChange, disabled }: RichTextEditorPr
 
   return (
     <div className="flex flex-1 flex-col overflow-hidden">
-      <MenuBar editor={editor} />
-      <div className="flex-1 overflow-y-auto">
+      {!disabled && <MenuBar editor={editor} />}
+      <div className={cn("flex-1 overflow-y-auto", disabled && "py-4")}>
         <EditorContent
           editor={editor}
-          className="h-full prose dark:prose-invert max-w-none prose-slate focus:outline-none"
+          className="min-h-full prose dark:prose-invert max-w-none prose-slate focus:outline-none"
         />
       </div>
     </div>

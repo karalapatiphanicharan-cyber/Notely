@@ -18,7 +18,6 @@ import {
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/Button';
 import { ConfirmModal } from '../ui/ConfirmModal';
-import ReactMarkdown from 'react-markdown';
 import { RichTextEditor } from './RichTextEditor';
 import { cn } from '../../utils/cn';
 
@@ -184,25 +183,21 @@ export function NoteEditor() {
           type="text"
           placeholder="Untitled Note"
           value={selectedNote.title}
-          disabled={privacyMode}
+          disabled={privacyMode || !isEditMode}
           onChange={(e) => updateNote(selectedNote.id, { title: e.target.value })}
           className={cn(
             "mb-6 w-full bg-transparent text-4xl font-bold tracking-tight outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800 transition-opacity",
-            privacyMode && "opacity-0"
+            privacyMode && "opacity-0",
+            !isEditMode && "cursor-default"
           )}
         />
         <div className={cn("flex-1 overflow-hidden flex flex-col", privacyMode && "opacity-0")}>
-          {isEditMode ? (
-            <RichTextEditor
-              content={selectedNote.content}
-              disabled={privacyMode}
-              onChange={(content) => updateNote(selectedNote.id, { content })}
-            />
-          ) : (
-            <div className="h-full w-full overflow-y-auto prose dark:prose-invert max-w-none prose-slate">
-              <ReactMarkdown>{selectedNote.content || "_No content to preview_"}</ReactMarkdown>
-            </div>
-          )}
+          <RichTextEditor
+            key={isEditMode ? 'edit' : 'preview'}
+            content={selectedNote.content}
+            disabled={privacyMode || !isEditMode}
+            onChange={(content) => updateNote(selectedNote.id, { content })}
+          />
         </div>
       </div>
 
