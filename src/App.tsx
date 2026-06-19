@@ -8,10 +8,10 @@ function App() {
       <MainLayout>
         <Routes>
           <Route path="/" element={<Home />} />
-          <Route path="/notes" element={<div>All Notes (Phase 2)</div>} />
-          <Route path="/favorites" element={<div>Favorites (Phase 2)</div>} />
-          <Route path="/archive" element={<div>Archive (Phase 2)</div>} />
-          <Route path="/trash" element={<div>Trash (Phase 2)</div>} />
+          <Route path="/notes" element={<Home />} />
+          <Route path="/favorites" element={<div>Favorites (Phase 3)</div>} />
+          <Route path="/archive" element={<div>Archive (Phase 3)</div>} />
+          <Route path="/trash" element={<div>Trash (Phase 3)</div>} />
         </Routes>
       </MainLayout>
     </Router>
