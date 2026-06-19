@@ -4,12 +4,9 @@ import { NoteCard } from './NoteCard';
 import { Button } from '../ui/Button';
 
 export function NotesList() {
-  const { notes, selectedNoteId, selectNote, createNote, searchQuery, setSearchQuery } = useNotesStore();
+  const { selectedNoteId, selectNote, createNote, searchQuery, setSearchQuery, getFilteredNotes } = useNotesStore();
 
-  const filteredNotes = notes.filter((note) =>
-    note.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    note.content.toLowerCase().includes(searchQuery.toLowerCase())
-  );
+  const filteredNotes = getFilteredNotes();
 
   return (
     <div className="flex h-full w-full lg:w-80 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
@@ -37,8 +34,15 @@ export function NotesList() {
 
       <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-1">
         {filteredNotes.length === 0 ? (
-          <div className="mt-8 text-center px-4">
-            <p className="text-xs text-gray-400 italic">No notes found</p>
+          <div className="mt-12 text-center px-6">
+            <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
+              {searchQuery.trim() ? "No matching notes found" : "No notes yet"}
+            </h3>
+            <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+              {searchQuery.trim()
+                ? "Try a different keyword or clear your search."
+                : "Create your first note to begin."}
+            </p>
           </div>
         ) : (
           filteredNotes.map((note) => (

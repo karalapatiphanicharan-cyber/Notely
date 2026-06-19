@@ -13,10 +13,11 @@ import {
   X
 } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
+import { useNotesStore } from '../../store/notesStore';
 import { cn } from '../../utils/cn';
 
 const navItems = [
-  { icon: Home, label: 'Home', path: '/' },
+  { icon: Home, label: 'Home', path: '/', isHome: true },
   { icon: FileText, label: 'All Notes', path: '/notes' },
   { icon: Star, label: 'Favorites', path: '/favorites' },
   { icon: Archive, label: 'Archive', path: '/archive' },
@@ -25,6 +26,7 @@ const navItems = [
 
 export function Sidebar() {
   const { isSidebarOpen, setSidebarOpen, theme, setTheme } = useUIStore();
+  const clearSearch = useNotesStore((state) => state.clearSearch);
 
   const toggleTheme = () => {
     if (theme === 'light') setTheme('dark');
@@ -68,6 +70,10 @@ export function Sidebar() {
             <NavLink
               key={item.path}
               to={item.path}
+              onClick={() => {
+                if (item.isHome) clearSearch();
+                if (window.innerWidth < 1024) setSidebarOpen(false);
+              }}
               className={({ isActive }) => cn(
                 "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
                 isActive

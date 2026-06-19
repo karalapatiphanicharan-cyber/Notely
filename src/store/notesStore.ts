@@ -11,6 +11,8 @@ interface NotesState {
   deleteNote: (id: string) => void;
   selectNote: (id: string | null) => void;
   setSearchQuery: (query: string) => void;
+  clearSearch: () => void;
+  getFilteredNotes: () => Note[];
 }
 
 const DEFAULT_NOTE: Note = {
@@ -26,6 +28,21 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   selectedNoteId: 'welcome-note',
   searchQuery: '',
 
+  getFilteredNotes: () => {
+    const { notes, searchQuery } = get();
+    const query = searchQuery.trim().toLowerCase();
+
+    // Sort notes by updatedAt descending
+    const sortedNotes = [...notes].sort((a, b) => b.updatedAt - a.updatedAt);
+
+    if (!query) return sortedNotes;
+
+    return sortedNotes.filter((note) =>
+      note.title.toLowerCase().includes(query) ||
+      note.content.toLowerCase().includes(query)
+    );
+  },
+
   createNote: () => {
     const newNote: Note = {
       id: crypto.randomUUID(),
@@ -38,6 +55,7 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     set((state) => ({
       notes: [newNote, ...state.notes],
       selectedNoteId: newNote.id,
+      searchQuery: '', // Clear search on create
     }));
   },
 
@@ -52,27 +70,39 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   },
 
   deleteNote: (id) => {
-    const { notes, selectedNoteId } = get();
-    const filteredNotes = notes.filter((note) => note.id !== id);
+    const { selectedNoteId, getFilteredNotes } = get();
+    const filteredBeforeDelete = getFilteredNotes();
 
-    let newSelectedId = selectedNoteId;
+    set((state) => ({
+      notes: state.notes.filter((note) => note.id !== id),
+    }));
+
+    const filteredAfterDelete = getFilteredNotes();
+
     if (selectedNoteId === id) {
-      if (filteredNotes.length > 0) {
-        // Select next available or previous
-        const deletedIndex = notes.findIndex(n => n.id === id);
-        newSelectedId = filteredNotes[deletedIndex] ? filteredNotes[deletedIndex].id : filteredNotes[deletedIndex - 1].id;
+      if (filteredAfterDelete.length > 0) {
+        const deletedIndex = filteredBeforeDelete.findIndex(n => n.id === id);
+        const nextSelect = filteredAfterDelete[deletedIndex] || filteredAfterDelete[filteredAfterDelete.length - 1];
+        set({ selectedNoteId: nextSelect.id });
       } else {
-        newSelectedId = null;
+        set({ selectedNoteId: null });
       }
     }
-
-    set({
-      notes: filteredNotes,
-      selectedNoteId: newSelectedId,
-    });
   },
 
   selectNote: (id) => set({ selectedNoteId: id }),
 
-  setSearchQuery: (query) => set({ searchQuery: query }),
+  setSearchQuery: (query) => {
+    set({ searchQuery: query });
+
+    const { selectedNoteId, getFilteredNotes } = get();
+    const filteredNotes = getFilteredNotes();
+
+    // If selected note is no longer in results, select the first visible one
+    if (selectedNoteId && !filteredNotes.some(n => n.id === selectedNoteId)) {
+      set({ selectedNoteId: filteredNotes.length > 0 ? filteredNotes[0].id : null });
+    }
+  },
+
+  clearSearch: () => set({ searchQuery: '' }),
 }));
