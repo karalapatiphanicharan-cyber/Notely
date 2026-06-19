@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import type { Attachment } from '../../types/attachment';
 import { X, Maximize2 } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { ConfirmModal } from '../ui/ConfirmModal';
 
 interface ImageThumbnailProps {
   attachment: Attachment;
@@ -11,6 +12,7 @@ interface ImageThumbnailProps {
 
 export function ImageThumbnail({ attachment, onRemove, onExpand }: ImageThumbnailProps) {
   const [url, setUrl] = useState<string>('');
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   useEffect(() => {
     const objectUrl = URL.createObjectURL(attachment.data);
@@ -46,16 +48,22 @@ export function ImageThumbnail({ attachment, onRemove, onExpand }: ImageThumbnai
             variant="ghost"
             size="icon"
             className="h-7 w-7 bg-white/90 text-red-600 hover:bg-white hover:text-red-700 dark:bg-gray-900/90 dark:text-red-400"
-            onClick={() => {
-              if (confirm('Are you sure you want to remove this image?')) {
-                onRemove(attachment.id);
-              }
-            }}
+            onClick={() => setShowDeleteConfirm(true)}
           >
             <X className="h-3.5 w-3.5" />
           </Button>
         </div>
       </div>
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="Delete Image?"
+        message="Are you sure you want to permanently remove this image?"
+        onConfirm={() => {
+          onRemove(attachment.id);
+          setShowDeleteConfirm(false);
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

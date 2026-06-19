@@ -57,24 +57,46 @@ export function Sidebar() {
         )}
       >
         <div className={cn(
-          "flex h-16 items-center px-6",
+          "flex h-16 items-center px-4",
           isSidebarCollapsed ? "justify-center" : "justify-between"
         )}>
           {!isSidebarCollapsed && (
-            <div className="flex items-center gap-3 font-bold text-xl tracking-tight">
+            <div className="flex items-center gap-3 font-bold text-xl tracking-tight px-2">
               <img src={logo} alt="Notely Logo" className="h-8 w-8 object-contain" />
               Notely
             </div>
           )}
           {isSidebarCollapsed && (
-            <img src={logo} alt="Notely Logo" className="h-8 w-8 object-contain" />
+            <div className="flex flex-col items-center gap-4">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleSidebarCollapse}
+                className="hidden lg:flex h-8 w-8 text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+              >
+                <ChevronRight className="h-4 w-4" />
+              </Button>
+              <img src={logo} alt="Notely Logo" className="h-8 w-8 object-contain" />
+            </div>
           )}
-          <button
-            className="lg:hidden"
-            onClick={() => setSidebarOpen(false)}
-          >
-            <X className="h-5 w-5" />
-          </button>
+          {!isSidebarCollapsed && (
+            <div className="flex items-center gap-1">
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={toggleSidebarCollapse}
+                className="hidden lg:flex h-8 w-8 text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </Button>
+              <button
+                className="lg:hidden p-2 text-gray-400 hover:text-gray-900 dark:hover:text-gray-100"
+                onClick={() => setSidebarOpen(false)}
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+          )}
         </div>
 
         <nav className="flex-1 space-y-1 px-3 py-4 overflow-hidden">
@@ -131,14 +153,6 @@ export function Sidebar() {
             {!isSidebarCollapsed && <span>Settings</span>}
           </NavLink>
 
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={toggleSidebarCollapse}
-            className="mt-4 hidden w-full items-center justify-center lg:flex"
-          >
-            {isSidebarCollapsed ? <ChevronRight className="h-4 w-4" /> : <ChevronLeft className="h-4 w-4" />}
-          </Button>
         </div>
       </aside>
     </>
