@@ -1,6 +1,7 @@
 import { useNotesStore } from '../../store/notesStore';
 import { useUIStore } from '../../store/uiStore';
 import { EmptyState } from '../ui/EmptyState';
+import { AttachmentSection } from './AttachmentSection';
 import {
   Plus,
   EyeOff,
@@ -188,6 +189,8 @@ export function NoteEditor() {
           </div>
         )}
       </div>
+
+      <AttachmentSection />
 
       <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-gray-100 pt-6 text-[10px] font-medium uppercase tracking-widest text-gray-400 dark:border-gray-900">
         <div className="flex items-center gap-6">

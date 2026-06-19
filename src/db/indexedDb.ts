@@ -1,5 +1,6 @@
 import { openDB, type DBSchema, type IDBPDatabase } from 'idb';
 import type { Note } from '../types/note';
+import type { Attachment } from '../types/attachment';
 
 interface NotelyDB extends DBSchema {
   notes: {
@@ -7,10 +8,15 @@ interface NotelyDB extends DBSchema {
     value: Note;
     indexes: { 'by-updated': number };
   };
+  attachments: {
+    key: string;
+    value: Attachment;
+    indexes: { 'by-note': string };
+  };
 }
 
 const DATABASE_NAME = 'notely-db';
-const DATABASE_VERSION = 2;
+const DATABASE_VERSION = 3;
 
 export async function initDB(): Promise<IDBPDatabase<NotelyDB>> {
   return openDB<NotelyDB>(DATABASE_NAME, DATABASE_VERSION, {
@@ -22,9 +28,13 @@ export async function initDB(): Promise<IDBPDatabase<NotelyDB>> {
         store.createIndex('by-updated', 'updatedAt');
       }
 
-      if (oldVersion < 2) {
-        // Migration will be handled by the store when loading if needed,
-        // or we can iterate here using transaction.objectStore('notes').
+      if (oldVersion < 3) {
+        if (!db.objectStoreNames.contains('attachments')) {
+          const attachmentStore = db.createObjectStore('attachments', {
+            keyPath: 'id',
+          });
+          attachmentStore.createIndex('by-note', 'noteId');
+        }
       }
     },
   });

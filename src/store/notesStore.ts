@@ -1,10 +1,13 @@
 import { create } from 'zustand';
 import type { Note } from '../types/note';
+import type { Attachment } from '../types/attachment';
 import { notesRepository } from '../db/notesRepository';
+import { attachmentsRepository } from '../db/attachmentsRepository';
 
 interface NotesState {
   notes: Note[];
   selectedNoteId: string | null;
+  selectedNoteAttachments: Attachment[];
   searchQuery: string;
   isLoading: boolean;
 
@@ -21,6 +24,11 @@ interface NotesState {
   setSearchQuery: (query: string) => void;
   clearSearch: () => void;
   getFilteredNotes: (path: string) => Note[];
+
+  // Attachment actions
+  addAttachment: (noteId: string, file: File) => Promise<void>;
+  removeAttachment: (attachmentId: string) => Promise<void>;
+  loadAttachments: (noteId: string) => Promise<void>;
 }
 
 const WELCOME_NOTE: Note = {
@@ -57,6 +65,7 @@ const flushUpdate = async (id: string, notes: Note[]) => {
 export const useNotesStore = create<NotesState>((set, get) => ({
   notes: [],
   selectedNoteId: null,
+  selectedNoteAttachments: [],
   searchQuery: '',
   isLoading: true,
 
@@ -81,12 +90,17 @@ export const useNotesStore = create<NotesState>((set, get) => ({
           selectedNoteId: WELCOME_NOTE.id,
           isLoading: false
         });
+        await get().loadAttachments(WELCOME_NOTE.id);
       } else {
+        const initialNoteId = normalizedNotes.find(n => !n.isArchived && !n.isTrashed)?.id || normalizedNotes[0].id;
         set({
           notes: normalizedNotes,
-          selectedNoteId: normalizedNotes.find(n => !n.isArchived && !n.isTrashed)?.id || normalizedNotes[0].id,
+          selectedNoteId: initialNoteId,
           isLoading: false
         });
+        if (initialNoteId) {
+          await get().loadAttachments(initialNoteId);
+        }
       }
     } catch (error) {
       console.error('Failed to load notes:', error);
@@ -207,11 +221,15 @@ export const useNotesStore = create<NotesState>((set, get) => ({
         updateTimeouts.delete(id);
       }
 
-      await notesRepository.deleteNote(id);
+      await Promise.all([
+        notesRepository.deleteNote(id),
+        attachmentsRepository.deleteAttachmentsByNote(id)
+      ]);
 
       set((state) => ({
         notes: state.notes.filter((note) => note.id !== id),
-        selectedNoteId: selectedNoteId === id ? null : selectedNoteId
+        selectedNoteId: selectedNoteId === id ? null : selectedNoteId,
+        selectedNoteAttachments: selectedNoteId === id ? [] : state.selectedNoteAttachments
       }));
     } catch (error) {
       console.error('Failed to permanently delete note:', error);
@@ -251,6 +269,11 @@ export const useNotesStore = create<NotesState>((set, get) => ({
     }
 
     set({ selectedNoteId: id });
+    if (id) {
+      get().loadAttachments(id);
+    } else {
+      set({ selectedNoteAttachments: [] });
+    }
   },
 
   setSearchQuery: (query) => {
@@ -260,4 +283,49 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   },
 
   clearSearch: () => set({ searchQuery: '' }),
+
+  loadAttachments: async (noteId) => {
+    try {
+      const attachments = await attachmentsRepository.getAttachmentsByNote(noteId);
+      set({ selectedNoteAttachments: attachments });
+    } catch (error) {
+      console.error('Failed to load attachments:', error);
+    }
+  },
+
+  addAttachment: async (noteId, file) => {
+    const attachment: Attachment = {
+      id: crypto.randomUUID(),
+      noteId,
+      type: file.type.startsWith('image/') ? 'image' : 'pdf',
+      name: file.name,
+      size: file.size,
+      mimeType: file.type,
+      data: file,
+      createdAt: Date.now(),
+    };
+
+    try {
+      await attachmentsRepository.saveAttachment(attachment);
+      const { selectedNoteId } = get();
+      if (selectedNoteId === noteId) {
+        set((state) => ({
+          selectedNoteAttachments: [...state.selectedNoteAttachments, attachment]
+        }));
+      }
+    } catch (error) {
+      console.error('Failed to add attachment:', error);
+    }
+  },
+
+  removeAttachment: async (attachmentId) => {
+    try {
+      await attachmentsRepository.deleteAttachment(attachmentId);
+      set((state) => ({
+        selectedNoteAttachments: state.selectedNoteAttachments.filter(a => a.id !== attachmentId)
+      }));
+    } catch (error) {
+      console.error('Failed to remove attachment:', error);
+    }
+  },
 }));
