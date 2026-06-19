@@ -8,8 +8,8 @@ export function useKeyboardShortcuts() {
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      // Ctrl/Cmd + N -> New Note
-      if ((e.ctrlKey || e.metaKey) && e.key === 'n') {
+      // Ctrl/Cmd + Shift + N or Alt + N -> New Note
+      if (((e.ctrlKey || e.metaKey) && e.shiftKey && e.key.toLowerCase() === 'n') || (e.altKey && e.key.toLowerCase() === 'n')) {
         e.preventDefault();
         createNote();
       }

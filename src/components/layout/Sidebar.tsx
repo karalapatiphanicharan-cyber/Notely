@@ -95,10 +95,21 @@ export function Sidebar() {
             <ThemeIcon className="h-4 w-4" />
             Theme: {theme.charAt(0).toUpperCase() + theme.slice(1)}
           </button>
-          <button className="flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-100">
+          <NavLink
+            to="/settings"
+            onClick={() => {
+              if (window.innerWidth < 1024) setSidebarOpen(false);
+            }}
+            className={({ isActive }) => cn(
+              "flex items-center gap-3 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+              isActive
+                ? "bg-gray-100 text-gray-900 dark:bg-gray-800 dark:text-gray-100"
+                : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-100"
+            )}
+          >
             <Settings className="h-4 w-4" />
             Settings
-          </button>
+          </NavLink>
         </div>
       </aside>
     </>
