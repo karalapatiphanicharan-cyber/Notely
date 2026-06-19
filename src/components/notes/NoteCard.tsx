@@ -13,11 +13,23 @@ export function NoteCard({ note, isActive, onClick }: NoteCardProps) {
   const deleteNote = useNotesStore((state) => state.deleteNote);
 
   const formatTime = (timestamp: number) => {
+    const date = new Date(timestamp);
+    const now = new Date();
+
+    const isToday = date.toDateString() === now.toDateString();
+
+    if (isToday) {
+      return new Intl.DateTimeFormat('en-US', {
+        hour: 'numeric',
+        minute: 'numeric',
+        hour12: true,
+      }).format(date);
+    }
+
     return new Intl.DateTimeFormat('en-US', {
-      hour: 'numeric',
-      minute: 'numeric',
-      hour12: true,
-    }).format(new Date(timestamp));
+      month: 'short',
+      day: 'numeric',
+    }).format(date);
   };
 
   return (
@@ -31,16 +43,19 @@ export function NoteCard({ note, isActive, onClick }: NoteCardProps) {
       <div className="flex justify-between items-start mb-1">
         <h4 className={cn(
           "line-clamp-1 flex-1 font-medium text-gray-900 dark:text-gray-100",
-          !note.title && "text-gray-400 italic"
+          !note.title.trim() && "text-gray-400 italic"
         )}>
-          {note.title || "Untitled Note"}
+          {note.title.trim() || "Untitled Note"}
         </h4>
         <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2 pt-1">
           {formatTime(note.updatedAt)}
         </span>
       </div>
-      <p className="line-clamp-2 text-xs text-gray-500 dark:text-gray-400 leading-relaxed">
-        {note.content || "No content"}
+      <p className={cn(
+        "line-clamp-2 text-xs leading-relaxed",
+        note.content.trim() ? "text-gray-500 dark:text-gray-400" : "text-gray-400 italic"
+      )}>
+        {note.content.trim() || "No content"}
       </p>
 
       <button

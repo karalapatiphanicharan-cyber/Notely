@@ -10,7 +10,7 @@ export function NoteEditor() {
   const selectedNote = notes.find((n) => n.id === selectedNoteId);
 
   useEffect(() => {
-    if (selectedNote && selectedNote.title === '') {
+    if (selectedNote && selectedNote.title === '' && selectedNote.content === '') {
       titleInputRef.current?.focus();
     }
   }, [selectedNoteId, selectedNote]);
