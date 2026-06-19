@@ -12,17 +12,27 @@ import {
   Copy,
   RotateCw,
   Image as ImageIcon,
-  FileText
+  FileText,
+  CheckSquare,
+  ListTodo
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
 import { useState, useEffect } from 'react';
 import { attachmentsRepository } from '../db/attachmentsRepository';
+import { useTodoStore } from '../store/todoStore';
+import { todoRepository } from '../db/todoRepository';
 
 export function Settings() {
   const { notes, loadNotes } = useNotesStore();
   const { theme } = useUIStore();
+  const { lists, loadLists } = useTodoStore();
   const [isCopied, setIsCopied] = useState(false);
   const [attachmentStats, setAttachmentStats] = useState({ images: 0, pdfs: 0 });
+  const [todoStats, setTodoStats] = useState({ totalTasks: 0, completedTasks: 0, pendingTasks: 0 });
+
+  useEffect(() => {
+    loadLists();
+  }, [loadLists]);
 
   useEffect(() => {
     const fetchAttachmentStats = async () => {
@@ -37,6 +47,20 @@ export function Settings() {
       }
     };
     fetchAttachmentStats();
+
+    const fetchTodoStats = async () => {
+      try {
+        const allTasks = await todoRepository.getAllTasks();
+        setTodoStats({
+          totalTasks: allTasks.length,
+          completedTasks: allTasks.filter(t => t.isCompleted).length,
+          pendingTasks: allTasks.filter(t => !t.isCompleted).length,
+        });
+      } catch (error) {
+        console.error('Failed to fetch todo stats:', error);
+      }
+    };
+    fetchTodoStats();
   }, []);
 
   // Derive isPWA from window matchMedia if available, otherwise default to false
@@ -144,6 +168,50 @@ export function Settings() {
                 <div>
                   <div className="text-[10px] text-gray-500 uppercase">PDFs</div>
                   <div className="text-lg font-bold text-gray-900 dark:text-gray-100">{attachmentStats.pdfs}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-6 space-y-4 border-t border-gray-100 pt-6 dark:border-gray-900">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-400">
+              To-Do Statistics
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white p-3 dark:border-gray-900 dark:bg-gray-950">
+                <div className="rounded-md bg-purple-50 p-2 text-purple-600 dark:bg-purple-900/20 dark:text-purple-400">
+                  <ListTodo className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase">Lists</div>
+                  <div className="text-lg font-bold text-gray-900 dark:text-gray-100">{lists.length}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white p-3 dark:border-gray-900 dark:bg-gray-950">
+                <div className="rounded-md bg-green-50 p-2 text-green-600 dark:bg-green-900/20 dark:text-green-400">
+                  <CheckSquare className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase">Tasks</div>
+                  <div className="text-lg font-bold text-gray-900 dark:text-gray-100">{todoStats.totalTasks}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white p-3 dark:border-gray-900 dark:bg-gray-950">
+                <div className="rounded-md bg-emerald-50 p-2 text-emerald-600 dark:bg-emerald-900/20 dark:text-emerald-400">
+                  <CheckSquare className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase">Completed</div>
+                  <div className="text-lg font-bold text-gray-900 dark:text-gray-100">{todoStats.completedTasks}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white p-3 dark:border-gray-900 dark:bg-gray-950">
+                <div className="rounded-md bg-amber-50 p-2 text-amber-600 dark:bg-amber-900/20 dark:text-amber-400">
+                  <CheckSquare className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase">Pending</div>
+                  <div className="text-lg font-bold text-gray-900 dark:text-gray-100">{todoStats.pendingTasks}</div>
                 </div>
               </div>
             </div>

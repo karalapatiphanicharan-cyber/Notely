@@ -14,6 +14,7 @@ export function Header() {
       case '/archive': return 'Archive';
       case '/trash': return 'Trash';
       case '/notes': return 'All Notes';
+      case '/todo': return 'To-Do List';
       default: return 'Home';
     }
   };
@@ -33,16 +34,18 @@ export function Header() {
       </div>
 
       <div className="flex items-center gap-4">
-        <div className="relative hidden sm:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
-          <input
-            type="text"
-            placeholder="Search notes..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-64 rounded-md border border-gray-200 bg-gray-50 pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-black/5 dark:border-gray-800 dark:bg-gray-900 dark:focus:ring-white/5"
-          />
-        </div>
+        {location.pathname !== '/todo' && (
+          <div className="relative hidden sm:block">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+            <input
+              type="text"
+              placeholder="Search notes..."
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              className="h-9 w-64 rounded-md border border-gray-200 bg-gray-50 pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-black/5 dark:border-gray-800 dark:bg-gray-900 dark:focus:ring-white/5"
+            />
+          </div>
+        )}
       </div>
     </header>
   );
