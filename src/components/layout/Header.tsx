@@ -1,9 +1,11 @@
 import { Search, Menu, Sun, Moon, Monitor } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
+import { useNotesStore } from '../../store/notesStore';
 import { Button } from '../ui/Button';
 
 export function Header() {
   const { toggleSidebar, theme, setTheme } = useUIStore();
+  const { searchQuery, setSearchQuery } = useNotesStore();
 
   const toggleTheme = () => {
     if (theme === 'light') setTheme('dark');
@@ -33,6 +35,8 @@ export function Header() {
           <input
             type="text"
             placeholder="Search notes..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
             className="h-9 w-64 rounded-md border border-gray-200 bg-gray-50 pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-black/5 dark:border-gray-800 dark:bg-gray-900 dark:focus:ring-white/5"
           />
         </div>
