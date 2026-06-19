@@ -1,72 +1,58 @@
-import { Search, Menu, Sun, Moon, Monitor, Eye, EyeOff } from 'lucide-react';
+import { Menu, Search, User, Moon, Sun } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
-import { useNotesStore } from '../../store/notesStore';
 import { Button } from '../ui/Button';
-import { useLocation } from 'react-router-dom';
 
 export function Header() {
-  const { toggleSidebar, theme, setTheme, privacyMode, togglePrivacyMode } = useUIStore();
-  const { searchQuery, setSearchQuery } = useNotesStore();
-  const location = useLocation();
-
-  const getPageTitle = () => {
-    switch (location.pathname) {
-      case '/favorites': return 'Favorites';
-      case '/archive': return 'Archive';
-      case '/trash': return 'Trash';
-      case '/notes': return 'All Notes';
-      default: return 'Home';
-    }
-  };
-
-  const toggleTheme = () => {
-    if (theme === 'light') setTheme('dark');
-    else if (theme === 'dark') setTheme('system');
-    else setTheme('light');
-  };
-
-  const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor;
+  const { toggleSidebar, theme, setTheme } = useUIStore();
 
   return (
-    <header className="sticky top-0 z-30 flex h-16 w-full items-center justify-between border-b border-gray-200 bg-white/80 px-4 backdrop-blur-md lg:px-8 dark:border-gray-800 dark:bg-gray-950/80">
+    <header className="sticky top-0 z-40 flex h-16 w-full items-center justify-between border-b border-gray-200 bg-white/80 px-4 backdrop-blur-md dark:border-gray-800 dark:bg-gray-950/80 lg:px-8">
       <div className="flex items-center gap-4">
-        <button
+        <Button
+          variant="ghost"
+          size="icon"
           onClick={toggleSidebar}
           className="lg:hidden"
+          aria-label="Toggle Menu"
         >
           <Menu className="h-5 w-5" />
-        </button>
-        <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          {getPageTitle()}
-        </h1>
+        </Button>
+        <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Home</h2>
       </div>
 
       <div className="flex items-center gap-2 lg:gap-4">
-        <div className="relative hidden sm:block">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+        <div className="relative hidden items-center sm:flex">
+          <Search className="absolute left-3 h-4 w-4 text-gray-400" />
           <input
             type="text"
             placeholder="Search notes..."
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            className="h-9 w-64 rounded-md border border-gray-200 bg-gray-50 pl-9 pr-4 text-sm outline-none focus:ring-2 focus:ring-black/5 dark:border-gray-800 dark:bg-gray-900 dark:focus:ring-white/5"
+            className="h-9 w-64 rounded-full bg-gray-100 pl-10 pr-4 text-sm outline-none transition-all focus:ring-2 focus:ring-black/5 dark:bg-gray-900 dark:focus:ring-white/5"
           />
         </div>
 
         <Button
           variant="ghost"
           size="icon"
-          onClick={togglePrivacyMode}
-          title={privacyMode ? "Disable Privacy Mode" : "Enable Privacy Mode"}
+          className="sm:hidden"
+          aria-label="Search"
         >
-          {privacyMode ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+          <Search className="h-5 w-5" />
         </Button>
 
-        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Change Theme">
-          <ThemeIcon className="h-5 w-5" />
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
+          className="hidden sm:inline-flex"
+        >
+          {theme === 'dark' ? <Sun className="h-5 w-5" /> : <Moon className="h-5 w-5" />}
         </Button>
 
-        <div className="h-8 w-8 rounded-full bg-gray-200 dark:bg-gray-800" />
+        <div className="h-8 w-8 overflow-hidden rounded-full bg-gray-200 dark:bg-gray-800">
+          <div className="flex h-full w-full items-center justify-center text-gray-400">
+            <User className="h-5 w-5" />
+          </div>
+        </div>
       </div>
     </header>
   );

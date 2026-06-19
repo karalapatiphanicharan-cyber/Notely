@@ -1,9 +1,9 @@
-import type { ReactNode } from 'react';
+import { type ReactNode } from 'react';
 import { Button } from './Button';
 
 interface EmptyStateProps {
   title: string;
-  subtitle: string;
+  description: string;
   icon?: ReactNode;
   actionLabel?: string;
   onAction?: () => void;
@@ -11,22 +11,22 @@ interface EmptyStateProps {
 
 export function EmptyState({
   title,
-  subtitle,
+  description,
   icon,
   actionLabel,
   onAction,
 }: EmptyStateProps) {
   return (
-    <div className="flex flex-col items-center justify-center py-12 px-4 text-center">
-      {icon && <div className="mb-4 text-gray-400">{icon}</div>}
-      <h3 className="mb-2 text-2xl font-semibold tracking-tight text-gray-900 dark:text-gray-100">
+    <div className="flex flex-col items-center justify-center p-8 text-center animate-in fade-in duration-500">
+      {icon && <div className="mb-6 text-gray-300 dark:text-gray-700">{icon}</div>}
+      <h3 className="mb-2 text-2xl font-bold tracking-tight text-gray-900 dark:text-gray-100">
         {title}
       </h3>
       <p className="mb-8 max-w-sm text-gray-500 dark:text-gray-400">
-        {subtitle}
+        {description}
       </p>
       {actionLabel && (
-        <Button size="lg" onClick={onAction}>
+        <Button onClick={onAction} size="lg" className="rounded-full shadow-lg shadow-gray-200 dark:shadow-none">
           {actionLabel}
         </Button>
       )}

@@ -1,21 +1,27 @@
 import { create } from 'zustand';
+import { persist } from 'zustand/middleware';
+
+type Theme = 'light' | 'dark' | 'system';
 
 interface UIState {
-  theme: 'light' | 'dark' | 'system';
+  theme: Theme;
   isSidebarOpen: boolean;
-  privacyMode: boolean;
-  setTheme: (theme: 'light' | 'dark' | 'system') => void;
+  setTheme: (theme: Theme) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (isOpen: boolean) => void;
-  togglePrivacyMode: () => void;
 }
 
-export const useUIStore = create<UIState>((set) => ({
-  theme: 'system',
-  isSidebarOpen: true,
-  privacyMode: false,
-  setTheme: (theme) => set({ theme }),
-  toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
-  setSidebarOpen: (isOpen) => set({ isSidebarOpen: isOpen }),
-  togglePrivacyMode: () => set((state) => ({ privacyMode: !state.privacyMode })),
-}));
+export const useUIStore = create<UIState>()(
+  persist(
+    (set) => ({
+      theme: 'system',
+      isSidebarOpen: true,
+      setTheme: (theme) => set({ theme }),
+      toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
+      setSidebarOpen: (isOpen) => set({ isSidebarOpen: isOpen }),
+    }),
+    {
+      name: 'notely-ui-storage',
+    }
+  )
+);
