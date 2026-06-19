@@ -9,10 +9,15 @@ import {
   Archive,
   RotateCcw,
   Trash2,
-  Trash
+  Trash,
+  Edit3,
+  Eye,
+  Clock,
+  CheckCircle2
 } from 'lucide-react';
-import { useEffect, useRef } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/Button';
+import ReactMarkdown from 'react-markdown';
 
 export function NoteEditor() {
   const {
@@ -29,6 +34,7 @@ export function NoteEditor() {
   } = useNotesStore();
   const privacyMode = useUIStore((state) => state.privacyMode);
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const [isEditMode, setIsEditMode] = useState(true);
 
   const selectedNote = notes.find((n) => n.id === selectedNoteId);
 
@@ -101,6 +107,28 @@ export function NoteEditor() {
         </div>
 
         <div className="flex items-center gap-2">
+          {!selectedNote.isTrashed && (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setIsEditMode(!isEditMode)}
+              className="text-gray-500 hover:text-gray-700"
+              title={isEditMode ? "Switch to Preview" : "Switch to Edit"}
+            >
+              {isEditMode ? (
+                <>
+                  <Eye className="mr-2 h-4 w-4" />
+                  Preview
+                </>
+              ) : (
+                <>
+                  <Edit3 className="mr-2 h-4 w-4" />
+                  Edit
+                </>
+              )}
+            </Button>
+          )}
+
           {selectedNote.isTrashed ? (
             <Button
               variant="ghost"
@@ -147,12 +175,51 @@ export function NoteEditor() {
             </div>
           </div>
         )}
-        <textarea
-          placeholder="Start writing..."
-          value={selectedNote.content}
-          onChange={(e) => updateNote(selectedNote.id, { content: e.target.value })}
-          className="h-full w-full resize-none bg-transparent text-lg leading-relaxed outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800"
-        />
+        {isEditMode ? (
+          <textarea
+            placeholder="Start writing..."
+            value={selectedNote.content}
+            onChange={(e) => updateNote(selectedNote.id, { content: e.target.value })}
+            className="h-full w-full resize-none bg-transparent text-lg leading-relaxed outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800"
+          />
+        ) : (
+          <div className="h-full w-full overflow-y-auto prose dark:prose-invert max-w-none prose-slate">
+            <ReactMarkdown>{selectedNote.content || "_No content to preview_"}</ReactMarkdown>
+          </div>
+        )}
+      </div>
+
+      <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-gray-100 pt-6 text-[10px] font-medium uppercase tracking-widest text-gray-400 dark:border-gray-900">
+        <div className="flex items-center gap-6">
+          <div className="flex items-center gap-1.5">
+            <span className="text-gray-900 dark:text-gray-100">
+              {selectedNote.content.trim() ? selectedNote.content.trim().split(/\s+/).length : 0}
+            </span>
+            Words
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-gray-900 dark:text-gray-100">
+              {selectedNote.content.length}
+            </span>
+            Characters
+          </div>
+          <div className="flex items-center gap-1.5">
+            <Clock className="h-3 w-3" />
+            <span>
+              {Math.max(1, Math.ceil(selectedNote.content.trim().split(/\s+/).length / 200))} min read
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2">
+          <CheckCircle2 className="h-3 w-3 text-green-500" />
+          <span>Last saved {new Intl.DateTimeFormat('en-US', {
+            hour: 'numeric',
+            minute: 'numeric',
+            second: 'numeric',
+            hour12: true,
+          }).format(selectedNote.updatedAt)}</span>
+        </div>
       </div>
     </div>
   );

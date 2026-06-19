@@ -3,9 +3,11 @@ import { MainLayout } from './components/layout/MainLayout';
 import { Home } from './pages/Home';
 import { useEffect } from 'react';
 import { useNotesStore } from './store/notesStore';
+import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
 
 function App() {
   const loadNotes = useNotesStore((state) => state.loadNotes);
+  useKeyboardShortcuts();
 
   useEffect(() => {
     loadNotes();
