@@ -1,10 +1,10 @@
-import { Search, Menu, Sun, Moon, Monitor } from 'lucide-react';
+import { Search, Menu, Sun, Moon, Monitor, Eye, EyeOff } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useNotesStore } from '../../store/notesStore';
 import { Button } from '../ui/Button';
 
 export function Header() {
-  const { toggleSidebar, theme, setTheme } = useUIStore();
+  const { toggleSidebar, theme, setTheme, privacyMode, togglePrivacyMode } = useUIStore();
   const { searchQuery, setSearchQuery } = useNotesStore();
 
   const toggleTheme = () => {
@@ -41,7 +41,16 @@ export function Header() {
           />
         </div>
 
-        <Button variant="ghost" size="icon" onClick={toggleTheme}>
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={togglePrivacyMode}
+          title={privacyMode ? "Disable Privacy Mode" : "Enable Privacy Mode"}
+        >
+          {privacyMode ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+        </Button>
+
+        <Button variant="ghost" size="icon" onClick={toggleTheme} title="Change Theme">
           <ThemeIcon className="h-5 w-5" />
         </Button>
 

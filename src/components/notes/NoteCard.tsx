@@ -1,7 +1,8 @@
 import type { Note } from '../../types/note';
 import { cn } from '../../utils/cn';
-import { Trash2 } from 'lucide-react';
+import { Trash2, EyeOff } from 'lucide-react';
 import { useNotesStore } from '../../store/notesStore';
+import { useUIStore } from '../../store/uiStore';
 
 interface NoteCardProps {
   note: Note;
@@ -11,6 +12,7 @@ interface NoteCardProps {
 
 export function NoteCard({ note, isActive, onClick }: NoteCardProps) {
   const deleteNote = useNotesStore((state) => state.deleteNote);
+  const privacyMode = useUIStore((state) => state.privacyMode);
 
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
@@ -45,18 +47,24 @@ export function NoteCard({ note, isActive, onClick }: NoteCardProps) {
           "line-clamp-1 flex-1 font-medium text-gray-900 dark:text-gray-100",
           !note.title.trim() && "text-gray-400 italic"
         )}>
-          {note.title.trim() || "Untitled Note"}
+          {note.title.trim() || "Untitled"}
         </h4>
         <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2 pt-1">
           {formatTime(note.updatedAt)}
         </span>
       </div>
-      <p className={cn(
-        "line-clamp-2 text-xs leading-relaxed",
-        note.content.trim() ? "text-gray-500 dark:text-gray-400" : "text-gray-400 italic"
-      )}>
-        {note.content.trim() || "No content"}
-      </p>
+      {privacyMode ? (
+        <div className="flex items-center gap-1.5 text-gray-400 italic text-[10px]">
+          <EyeOff className="h-3 w-3" />
+          <span>Content Hidden</span>
+        </div>
+      ) : (
+        note.content.trim() && (
+          <p className="line-clamp-2 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
+            {note.content.trim()}
+          </p>
+        )
+      )}
 
       <button
         onClick={(e) => {
