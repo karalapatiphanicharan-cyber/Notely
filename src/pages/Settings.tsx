@@ -10,15 +10,34 @@ import {
   User,
   ExternalLink,
   Copy,
-  RotateCw
+  RotateCw,
+  Image as ImageIcon,
+  FileText
 } from 'lucide-react';
 import { Button } from '../components/ui/Button';
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { attachmentsRepository } from '../db/attachmentsRepository';
 
 export function Settings() {
   const { notes, loadNotes } = useNotesStore();
   const { theme } = useUIStore();
   const [isCopied, setIsCopied] = useState(false);
+  const [attachmentStats, setAttachmentStats] = useState({ images: 0, pdfs: 0 });
+
+  useEffect(() => {
+    const fetchAttachmentStats = async () => {
+      try {
+        const allAttachments = await attachmentsRepository.getAllAttachments();
+        setAttachmentStats({
+          images: allAttachments.filter(a => a.type === 'image').length,
+          pdfs: allAttachments.filter(a => a.type === 'pdf').length,
+        });
+      } catch (error) {
+        console.error('Failed to fetch attachment stats:', error);
+      }
+    };
+    fetchAttachmentStats();
+  }, []);
 
   // Derive isPWA from window matchMedia if available, otherwise default to false
   const isPWA = typeof window !== 'undefined' && window.matchMedia('(display-mode: standalone)').matches;
@@ -102,6 +121,32 @@ export function Settings() {
                 <div className="text-xl font-bold text-gray-900 dark:text-gray-100">{stat.value}</div>
               </div>
             ))}
+          </div>
+
+          <div className="mt-6 space-y-4 border-t border-gray-100 pt-6 dark:border-gray-900">
+            <div className="flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-gray-400">
+              Attachments
+            </div>
+            <div className="grid grid-cols-2 gap-4">
+              <div className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white p-3 dark:border-gray-900 dark:bg-gray-950">
+                <div className="rounded-md bg-blue-50 p-2 text-blue-600 dark:bg-blue-900/20 dark:text-blue-400">
+                  <ImageIcon className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase">Images</div>
+                  <div className="text-lg font-bold text-gray-900 dark:text-gray-100">{attachmentStats.images}</div>
+                </div>
+              </div>
+              <div className="flex items-center gap-3 rounded-lg border border-gray-100 bg-white p-3 dark:border-gray-900 dark:bg-gray-950">
+                <div className="rounded-md bg-red-50 p-2 text-red-600 dark:bg-red-900/20 dark:text-red-400">
+                  <FileText className="h-4 w-4" />
+                </div>
+                <div>
+                  <div className="text-[10px] text-gray-500 uppercase">PDFs</div>
+                  <div className="text-lg font-bold text-gray-900 dark:text-gray-100">{attachmentStats.pdfs}</div>
+                </div>
+              </div>
+            </div>
           </div>
         </section>
 
