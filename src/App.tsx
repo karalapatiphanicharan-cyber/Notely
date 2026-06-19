@@ -1,8 +1,16 @@
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { MainLayout } from './components/layout/MainLayout';
 import { Home } from './pages/Home';
+import { useEffect } from 'react';
+import { useNotesStore } from './store/notesStore';
 
 function App() {
+  const loadNotes = useNotesStore((state) => state.loadNotes);
+
+  useEffect(() => {
+    loadNotes();
+  }, [loadNotes]);
+
   return (
     <Router>
       <MainLayout>
