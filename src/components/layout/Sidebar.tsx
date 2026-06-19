@@ -6,6 +6,7 @@ import {
   Star,
   Archive,
   Trash2,
+  CheckSquare,
   Settings,
   Moon,
   Sun,
@@ -25,6 +26,7 @@ const navItems = [
   { icon: Star, label: 'Favorites', path: '/favorites' },
   { icon: Archive, label: 'Archive', path: '/archive' },
   { icon: Trash2, label: 'Trash', path: '/trash' },
+  { icon: CheckSquare, label: 'To-Do List', path: '/todo' },
 ];
 
 export function Sidebar() {

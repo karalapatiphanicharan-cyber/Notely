@@ -2,6 +2,7 @@ import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 import { MainLayout } from './components/layout/MainLayout';
 import { Home } from './pages/Home';
 import { Settings } from './pages/Settings';
+import { TodoPage } from './pages/TodoPage';
 import { useEffect } from 'react';
 import { useNotesStore } from './store/notesStore';
 import { useKeyboardShortcuts } from './hooks/useKeyboardShortcuts';
@@ -23,6 +24,7 @@ function App() {
           <Route path="/favorites" element={<Home />} />
           <Route path="/archive" element={<Home />} />
           <Route path="/trash" element={<Home />} />
+          <Route path="/todo" element={<TodoPage />} />
           <Route path="/settings" element={<Settings />} />
         </Routes>
       </MainLayout>
