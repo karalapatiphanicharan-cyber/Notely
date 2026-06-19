@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useTodoStore } from '../store/todoStore';
+import { useUIStore } from '../store/uiStore';
 import {
   Plus,
   Search,
@@ -7,6 +8,7 @@ import {
   Circle,
   Trash2,
   ChevronRight,
+  ChevronLeft,
   ListTodo,
   Edit2
 } from 'lucide-react';
@@ -34,6 +36,7 @@ export function TodoPage() {
     setSearchQuery
   } = useTodoStore();
 
+  const { isTodoListCollapsed, toggleTodoListCollapse } = useUIStore();
   const [filter, setFilter] = useState<'all' | 'active' | 'completed'>('all');
   const [newTaskTitle, setNewTaskTitle] = useState('');
   const [newListTitle, setNewListTitle] = useState('');
@@ -95,89 +98,107 @@ export function TodoPage() {
     <div className="flex h-[calc(100vh-4rem)] overflow-hidden bg-gray-50 dark:bg-gray-950">
       {/* Lists Panel */}
       <div className={cn(
-        "w-64 border-r border-gray-200 bg-white flex flex-col shrink-0 transition-all duration-300 dark:border-gray-800 dark:bg-gray-950",
+        "border-r border-gray-200 bg-white flex flex-col shrink-0 transition-all duration-300 dark:border-gray-800 dark:bg-gray-950",
         "fixed inset-y-16 left-0 z-20 lg:static lg:block",
-        // isSidebarOpen logic from Home.tsx could be adapted here if needed
+        isTodoListCollapsed ? "w-16 items-center" : "w-64"
       )}>
-        <div className="p-4 border-b border-gray-100 dark:border-gray-900 flex items-center justify-between">
-          <h2 className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2">
-            <ListTodo className="h-4 w-4" />
-            To-Do Lists
-          </h2>
-          <Button variant="ghost" size="icon" onClick={() => setIsAddingList(true)} className="h-8 w-8">
-            <Plus className="h-4 w-4" />
-          </Button>
-        </div>
-
-        <div className="flex-1 overflow-y-auto p-2 space-y-1">
-          {isAddingList && (
-            <form onSubmit={handleAddList} className="p-2">
-              <input
-                autoFocus
-                className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-900 dark:border-gray-800"
-                placeholder="List title..."
-                value={newListTitle}
-                onChange={(e) => setNewListTitle(e.target.value)}
-                onBlur={() => !newListTitle && setIsAddingList(false)}
-              />
-            </form>
-          )}
-
-          {lists.length === 0 && !isAddingList ? (
-            <div className="py-8 text-center text-xs text-gray-400">No lists yet</div>
-          ) : (
-            lists.map((list) => (
-              <div
-                key={list.id}
-                className={cn(
-                  "group flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
-                  activeListId === list.id
-                    ? "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
-                    : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900/50 dark:hover:text-gray-100"
-                )}
-                onClick={() => setActiveListId(list.id)}
-              >
-                <div className="flex items-center gap-3 truncate">
-                  <ChevronRight className={cn("h-3 w-3 transition-transform", activeListId === list.id && "rotate-90")} />
-                  {editingListId === list.id ? (
-                    <form onSubmit={handleUpdateList} onClick={e => e.stopPropagation()}>
-                      <input
-                        autoFocus
-                        className="bg-transparent border-none p-0 focus:ring-0 w-full"
-                        value={editingListTitle}
-                        onChange={e => setEditingListTitle(e.target.value)}
-                        onBlur={() => setEditingListId(null)}
-                      />
-                    </form>
-                  ) : (
-                    <span>{list.title}</span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-                   <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setEditingListId(list.id);
-                      setEditingListTitle(list.title);
-                    }}
-                    className="p-1 hover:text-blue-600"
-                  >
-                    <Edit2 className="h-3 w-3" />
-                  </button>
-                  <button
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setListToDelete(list.id);
-                    }}
-                    className="p-1 hover:text-red-600"
-                  >
-                    <Trash2 className="h-3 w-3" />
-                  </button>
-                </div>
+        {isTodoListCollapsed ? (
+          <div className="flex flex-col items-center py-4 gap-4">
+            <Button variant="ghost" size="icon" onClick={toggleTodoListCollapse} className="h-8 w-8 text-gray-400 hover:text-gray-900 dark:hover:text-gray-100" title="Expand To-Do panel">
+              <ChevronRight className="h-4 w-4" />
+            </Button>
+            <ListTodo className="h-5 w-5 text-gray-400" />
+            <Button variant="ghost" size="icon" onClick={() => setIsAddingList(true)} className="h-8 w-8">
+              <Plus className="h-4 w-4" />
+            </Button>
+          </div>
+        ) : (
+          <>
+            <div className="p-4 border-b border-gray-100 dark:border-gray-900 flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" size="icon" className="h-8 w-8 hidden lg:flex text-gray-400 hover:text-gray-900 dark:hover:text-gray-100" onClick={toggleTodoListCollapse} title="Collapse To-Do panel">
+                  <ChevronLeft className="h-4 w-4" />
+                </Button>
+                <h2 className="font-bold text-gray-900 dark:text-gray-100 flex items-center gap-2 truncate">
+                  To-Do Lists
+                </h2>
               </div>
-            ))
-          )}
-        </div>
+              <Button variant="ghost" size="icon" onClick={() => setIsAddingList(true)} className="h-8 w-8">
+                <Plus className="h-4 w-4" />
+              </Button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-2 space-y-1">
+              {isAddingList && (
+                <form onSubmit={handleAddList} className="p-2">
+                  <input
+                    autoFocus
+                    className="w-full px-3 py-2 text-sm border rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500 dark:bg-gray-900 dark:border-gray-800"
+                    placeholder="List title..."
+                    value={newListTitle}
+                    onChange={(e) => setNewListTitle(e.target.value)}
+                    onBlur={() => !newListTitle && setIsAddingList(false)}
+                  />
+                </form>
+              )}
+
+              {lists.length === 0 && !isAddingList ? (
+                <div className="py-8 text-center text-xs text-gray-400">No lists yet</div>
+              ) : (
+                lists.map((list) => (
+                  <div
+                    key={list.id}
+                    className={cn(
+                      "group flex items-center justify-between rounded-md px-3 py-2 text-sm font-medium transition-colors cursor-pointer",
+                      activeListId === list.id
+                        ? "bg-blue-50 text-blue-700 dark:bg-blue-900/20 dark:text-blue-400"
+                        : "text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900/50 dark:hover:text-gray-100"
+                    )}
+                    onClick={() => setActiveListId(list.id)}
+                  >
+                    <div className="flex items-center gap-3 truncate">
+                      <ChevronRight className={cn("h-3 w-3 transition-transform", activeListId === list.id && "rotate-90")} />
+                      {editingListId === list.id ? (
+                        <form onSubmit={handleUpdateList} onClick={e => e.stopPropagation()}>
+                          <input
+                            autoFocus
+                            className="bg-transparent border-none p-0 focus:ring-0 w-full"
+                            value={editingListTitle}
+                            onChange={e => setEditingListTitle(e.target.value)}
+                            onBlur={() => setEditingListId(null)}
+                          />
+                        </form>
+                      ) : (
+                        <span>{list.title}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setEditingListId(list.id);
+                          setEditingListTitle(list.title);
+                        }}
+                        className="p-1 hover:text-blue-600"
+                      >
+                        <Edit2 className="h-3 w-3" />
+                      </button>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setListToDelete(list.id);
+                        }}
+                        className="p-1 hover:text-red-600"
+                      >
+                        <Trash2 className="h-3 w-3" />
+                      </button>
+                    </div>
+                  </div>
+                ))
+              )}
+            </div>
+          </>
+        )}
       </div>
 
       {/* Tasks Panel */}
