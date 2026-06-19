@@ -1,7 +1,6 @@
 import { useNotesStore } from '../../store/notesStore';
 import { useUIStore } from '../../store/uiStore';
 import { EmptyState } from '../ui/EmptyState';
-import { AttachmentSection } from './AttachmentSection';
 import {
   Plus,
   EyeOff,
@@ -33,7 +32,7 @@ export function NoteEditor() {
     deleteNote,
     permanentlyDeleteNote
   } = useNotesStore();
-  const privacyMode = useUIStore((state) => state.privacyMode);
+  const { privacyMode, togglePrivacyMode } = useUIStore();
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [isEditMode, setIsEditMode] = useState(true);
 
@@ -69,7 +68,7 @@ export function NoteEditor() {
                 variant="ghost"
                 size="icon"
                 onClick={() => togglePin(selectedNote.id)}
-                className={selectedNote.isPinned ? "text-blue-500 hover:text-blue-600" : "text-gray-400"}
+                className={selectedNote.isPinned ? "text-blue-600 hover:text-blue-700" : "text-gray-400"}
                 title={selectedNote.isPinned ? "Unpin note" : "Pin note"}
               >
                 <Pin className={selectedNote.isPinned ? "h-4 w-4 fill-current" : "h-4 w-4"} />
@@ -78,7 +77,7 @@ export function NoteEditor() {
                 variant="ghost"
                 size="icon"
                 onClick={() => toggleFavorite(selectedNote.id)}
-                className={selectedNote.isFavorite ? "text-yellow-500 hover:text-yellow-600" : "text-gray-400"}
+                className={selectedNote.isFavorite ? "text-yellow-600 hover:text-yellow-700" : "text-gray-400"}
                 title={selectedNote.isFavorite ? "Remove from favorites" : "Add to favorites"}
               >
                 <Star className={selectedNote.isFavorite ? "h-4 w-4 fill-current" : "h-4 w-4"} />
@@ -87,7 +86,7 @@ export function NoteEditor() {
                 variant="ghost"
                 size="icon"
                 onClick={() => toggleArchive(selectedNote.id)}
-                className={selectedNote.isArchived ? "text-purple-500 hover:text-purple-600" : "text-gray-400"}
+                className={selectedNote.isArchived ? "text-purple-600 hover:text-purple-700" : "text-gray-400"}
                 title={selectedNote.isArchived ? "Restore from archive" : "Archive note"}
               >
                 <Archive className={selectedNote.isArchived ? "h-4 w-4 fill-current" : "h-4 w-4"} />
@@ -109,25 +108,46 @@ export function NoteEditor() {
 
         <div className="flex items-center gap-2">
           {!selectedNote.isTrashed && (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setIsEditMode(!isEditMode)}
-              className="text-gray-500 hover:text-gray-700"
-              title={isEditMode ? "Switch to Preview" : "Switch to Edit"}
-            >
-              {isEditMode ? (
-                <>
-                  <Eye className="mr-2 h-4 w-4" />
-                  Preview
-                </>
-              ) : (
-                <>
-                  <Edit3 className="mr-2 h-4 w-4" />
-                  Edit
-                </>
-              )}
-            </Button>
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={togglePrivacyMode}
+                className={privacyMode ? "text-blue-600 font-bold" : "text-gray-900 dark:text-gray-100"}
+                title={privacyMode ? "Disable Privacy Mode" : "Enable Privacy Mode"}
+              >
+                {privacyMode ? (
+                  <>
+                    <EyeOff className="mr-2 h-4 w-4" />
+                    Privacy On
+                  </>
+                ) : (
+                  <>
+                    <Eye className="mr-2 h-4 w-4" />
+                    Privacy
+                  </>
+                )}
+              </Button>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditMode(!isEditMode)}
+                className="text-gray-900 font-bold dark:text-gray-100"
+                title={isEditMode ? "Switch to Preview" : "Switch to Edit"}
+              >
+                {isEditMode ? (
+                  <>
+                    <Eye className="mr-2 h-4 w-4" />
+                    Preview
+                  </>
+                ) : (
+                  <>
+                    <Edit3 className="mr-2 h-4 w-4" />
+                    Edit
+                  </>
+                )}
+              </Button>
+            </>
           )}
 
           {selectedNote.isTrashed ? (
@@ -135,7 +155,7 @@ export function NoteEditor() {
               variant="ghost"
               size="sm"
               onClick={() => permanentlyDeleteNote(selectedNote.id)}
-              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+              className="text-red-600 font-bold hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
             >
               <Trash2 className="mr-2 h-4 w-4" />
               Delete Permanently
@@ -143,12 +163,13 @@ export function NoteEditor() {
           ) : (
             <Button
               variant="ghost"
-              size="icon"
+              size="sm"
               onClick={() => deleteNote(selectedNote.id)}
-              className="text-gray-400 hover:text-red-500"
+              className="text-red-600 font-bold hover:text-red-700"
               title="Move to trash"
             >
-              <Trash className="h-4 w-4" />
+              <Trash className="mr-2 h-4 w-4" />
+              Delete
             </Button>
           )}
         </div>
@@ -190,9 +211,7 @@ export function NoteEditor() {
         )}
       </div>
 
-      <AttachmentSection />
-
-      <div className="mt-8 flex flex-wrap items-center justify-between gap-4 border-t border-gray-100 pt-6 text-[10px] font-medium uppercase tracking-widest text-gray-400 dark:border-gray-900">
+      <div className="mt-auto pt-12 flex flex-wrap items-center justify-between gap-4 border-t border-gray-100 pt-6 text-[10px] font-medium uppercase tracking-widest text-gray-400 dark:border-gray-900">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-1.5">
             <span className="text-gray-900 dark:text-gray-100">

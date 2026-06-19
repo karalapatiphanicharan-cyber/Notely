@@ -1,24 +1,44 @@
-import { Plus, Search } from 'lucide-react';
+import { Plus, Search, ChevronLeft, ChevronRight, FileText } from 'lucide-react';
 import { useNotesStore } from '../../store/notesStore';
 import { NoteCard } from './NoteCard';
 import { Button } from '../ui/Button';
 import { useLocation } from 'react-router-dom';
+import { useUIStore } from '../../store/uiStore';
 
 export function NotesList() {
   const { selectedNoteId, selectNote, createNote, searchQuery, setSearchQuery, getFilteredNotes } = useNotesStore();
+  const { isNotesListCollapsed, toggleNotesListCollapse } = useUIStore();
   const location = useLocation();
 
   const filteredNotes = getFilteredNotes(location.pathname);
 
+  if (isNotesListCollapsed) {
+    return (
+      <div className="flex h-full w-16 flex-col items-center border-r border-gray-200 bg-white py-4 dark:border-gray-800 dark:bg-gray-950 transition-all duration-300">
+        <Button variant="ghost" size="icon" onClick={toggleNotesListCollapse} className="mb-4">
+          <ChevronRight className="h-4 w-4" />
+        </Button>
+        <div className="flex flex-col items-center gap-4">
+          <FileText className="h-5 w-5 text-gray-400" />
+        </div>
+      </div>
+    );
+  }
+
   return (
-    <div className="flex h-full w-full lg:w-80 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
+    <div className="flex h-full w-full lg:w-80 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950 transition-all duration-300">
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-            {location.pathname === '/favorites' ? 'Favorites' :
-             location.pathname === '/archive' ? 'Archive' :
-             location.pathname === '/trash' ? 'Trash' : 'Notes'}
-          </h2>
+          <div className="flex items-center gap-2">
+            <Button variant="ghost" size="icon" className="h-8 w-8 hidden lg:flex" onClick={toggleNotesListCollapse}>
+              <ChevronLeft className="h-4 w-4" />
+            </Button>
+            <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
+              {location.pathname === '/favorites' ? 'Favorites' :
+               location.pathname === '/archive' ? 'Archive' :
+               location.pathname === '/trash' ? 'Trash' : 'Notes'}
+            </h2>
+          </div>
           {location.pathname !== '/trash' && (
             <Button variant="ghost" size="icon" className="h-8 w-8" onClick={createNote}>
               <Plus className="h-4 w-4" />
