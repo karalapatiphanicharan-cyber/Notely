@@ -7,8 +7,10 @@ interface UIState {
   isSidebarCollapsed: boolean;
   isNotesListCollapsed: boolean;
   isAttachmentsOpen: boolean;
+  isThemePanelExpanded: boolean;
   privacyMode: boolean;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
+  toggleThemePanel: () => void;
   toggleSidebar: () => void;
   setSidebarOpen: (isOpen: boolean) => void;
   toggleSidebarCollapse: () => void;
@@ -25,8 +27,10 @@ export const useUIStore = create<UIState>()(
       isSidebarCollapsed: false,
       isNotesListCollapsed: false,
       isAttachmentsOpen: true,
+      isThemePanelExpanded: false,
       privacyMode: false,
       setTheme: (theme) => set({ theme }),
+      toggleThemePanel: () => set((state) => ({ isThemePanelExpanded: !state.isThemePanelExpanded })),
       toggleSidebar: () => set((state) => ({ isSidebarOpen: !state.isSidebarOpen })),
       setSidebarOpen: (isOpen) => set({ isSidebarOpen: isOpen }),
       toggleSidebarCollapse: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),

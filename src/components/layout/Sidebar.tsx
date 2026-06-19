@@ -12,7 +12,8 @@ import {
   Monitor,
   X,
   ChevronLeft,
-  ChevronRight
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useNotesStore } from '../../store/notesStore';
@@ -28,14 +29,17 @@ const navItems = [
 ];
 
 export function Sidebar() {
-  const { isSidebarOpen, setSidebarOpen, theme, setTheme, isSidebarCollapsed, toggleSidebarCollapse } = useUIStore();
+  const {
+    isSidebarOpen,
+    setSidebarOpen,
+    theme,
+    setTheme,
+    isSidebarCollapsed,
+    toggleSidebarCollapse,
+    isThemePanelExpanded,
+    toggleThemePanel
+  } = useUIStore();
   const clearSearch = useNotesStore((state) => state.clearSearch);
-
-  const toggleTheme = () => {
-    if (theme === 'light') setTheme('dark');
-    else if (theme === 'dark') setTheme('system');
-    else setTheme('light');
-  };
 
   const ThemeIcon = theme === 'light' ? Sun : theme === 'dark' ? Moon : Monitor;
 
@@ -123,18 +127,53 @@ export function Sidebar() {
           ))}
         </nav>
 
-        <div className="border-t border-gray-200 p-3 space-y-1 dark:border-gray-800 overflow-hidden">
-          <button
-            onClick={toggleTheme}
-            title={isSidebarCollapsed ? `Theme: ${theme}` : undefined}
-            className={cn(
-              "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-100",
-              isSidebarCollapsed && "justify-center px-0"
+        <div className="border-t border-gray-200 p-3 space-y-1 dark:border-gray-800">
+          <div className="space-y-1">
+            <button
+              onClick={toggleThemePanel}
+              title={isSidebarCollapsed ? `Theme: ${theme}` : undefined}
+              className={cn(
+                "flex w-full items-center gap-3 rounded-md px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-50 hover:text-gray-900 dark:text-gray-400 dark:hover:bg-gray-900 dark:hover:text-gray-100",
+                isSidebarCollapsed && "justify-center px-0"
+              )}
+            >
+              <div className="flex flex-1 items-center gap-3">
+                <ThemeIcon className="h-4 w-4 shrink-0" />
+                {!isSidebarCollapsed && <span className="flex-1 text-left">Theme</span>}
+              </div>
+              {!isSidebarCollapsed && (
+                <ChevronDown className={cn(
+                  "h-3.5 w-3.5 transition-transform duration-200",
+                  isThemePanelExpanded ? "rotate-180" : ""
+                )} />
+              )}
+            </button>
+
+            {!isSidebarCollapsed && isThemePanelExpanded && (
+              <div className="flex items-center gap-1 p-1 bg-gray-50 dark:bg-gray-900 rounded-lg mx-1 animate-in fade-in slide-in-from-top-1 duration-200">
+                {[
+                  { value: 'light', icon: Sun, label: 'Light' },
+                  { value: 'dark', icon: Moon, label: 'Dark' },
+                  { value: 'system', icon: Monitor, label: 'System' }
+                ].map((option) => (
+                  <button
+                    key={option.value}
+                    onClick={() => setTheme(option.value as 'light' | 'dark' | 'system')}
+                    className={cn(
+                      "flex flex-1 items-center justify-center gap-1.5 rounded-md py-1.5 text-[11px] font-medium transition-all",
+                      theme === option.value
+                        ? "bg-white text-gray-900 shadow-sm dark:bg-gray-800 dark:text-gray-100"
+                        : "text-gray-500 hover:text-gray-900 dark:text-gray-400 dark:hover:text-gray-100"
+                    )}
+                  >
+                    <option.icon className="h-3 w-3" />
+                    {option.label}
+                  </button>
+                ))}
+              </div>
             )}
-          >
-            <ThemeIcon className="h-4 w-4 shrink-0" />
-            {!isSidebarCollapsed && <span>Theme: {theme.charAt(0).toUpperCase() + theme.slice(1)}</span>}
-          </button>
+          </div>
+
           <NavLink
             to="/settings"
             title={isSidebarCollapsed ? "Settings" : undefined}

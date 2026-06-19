@@ -19,6 +19,7 @@ import { useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/Button';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import ReactMarkdown from 'react-markdown';
+import { RichTextEditor } from './RichTextEditor';
 import { cn } from '../../utils/cn';
 
 export function NoteEditor() {
@@ -190,14 +191,12 @@ export function NoteEditor() {
             privacyMode && "opacity-0"
           )}
         />
-        <div className={cn("flex-1", privacyMode && "opacity-0")}>
+        <div className={cn("flex-1 overflow-hidden flex flex-col", privacyMode && "opacity-0")}>
           {isEditMode ? (
-            <textarea
-              placeholder="Start writing..."
-              value={selectedNote.content}
+            <RichTextEditor
+              content={selectedNote.content}
               disabled={privacyMode}
-              onChange={(e) => updateNote(selectedNote.id, { content: e.target.value })}
-              className="h-full w-full resize-none bg-transparent text-lg leading-relaxed outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800"
+              onChange={(content) => updateNote(selectedNote.id, { content })}
             />
           ) : (
             <div className="h-full w-full overflow-y-auto prose dark:prose-invert max-w-none prose-slate">
