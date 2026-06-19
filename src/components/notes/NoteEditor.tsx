@@ -1,11 +1,32 @@
 import { useNotesStore } from '../../store/notesStore';
 import { useUIStore } from '../../store/uiStore';
 import { EmptyState } from '../ui/EmptyState';
-import { Plus, EyeOff } from 'lucide-react';
+import {
+  Plus,
+  EyeOff,
+  Pin,
+  Star,
+  Archive,
+  RotateCcw,
+  Trash2,
+  Trash
+} from 'lucide-react';
 import { useEffect, useRef } from 'react';
+import { Button } from '../ui/Button';
 
 export function NoteEditor() {
-  const { notes, selectedNoteId, updateNote, createNote } = useNotesStore();
+  const {
+    notes,
+    selectedNoteId,
+    updateNote,
+    createNote,
+    togglePin,
+    toggleFavorite,
+    toggleArchive,
+    restoreNote,
+    deleteNote,
+    permanentlyDeleteNote
+  } = useNotesStore();
   const privacyMode = useUIStore((state) => state.privacyMode);
   const titleInputRef = useRef<HTMLInputElement>(null);
 
@@ -33,6 +54,77 @@ export function NoteEditor() {
 
   return (
     <div className="flex h-full flex-col p-8 lg:p-12">
+      <div className="mb-8 flex items-center justify-between">
+        <div className="flex items-center gap-1">
+          {!selectedNote.isTrashed && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => togglePin(selectedNote.id)}
+                className={selectedNote.isPinned ? "text-blue-500 hover:text-blue-600" : "text-gray-400"}
+                title={selectedNote.isPinned ? "Unpin note" : "Pin note"}
+              >
+                <Pin className={selectedNote.isPinned ? "h-4 w-4 fill-current" : "h-4 w-4"} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => toggleFavorite(selectedNote.id)}
+                className={selectedNote.isFavorite ? "text-yellow-500 hover:text-yellow-600" : "text-gray-400"}
+                title={selectedNote.isFavorite ? "Remove from favorites" : "Add to favorites"}
+              >
+                <Star className={selectedNote.isFavorite ? "h-4 w-4 fill-current" : "h-4 w-4"} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => toggleArchive(selectedNote.id)}
+                className={selectedNote.isArchived ? "text-purple-500 hover:text-purple-600" : "text-gray-400"}
+                title={selectedNote.isArchived ? "Restore from archive" : "Archive note"}
+              >
+                <Archive className={selectedNote.isArchived ? "h-4 w-4 fill-current" : "h-4 w-4"} />
+              </Button>
+            </>
+          )}
+          {selectedNote.isTrashed && (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => restoreNote(selectedNote.id)}
+              className="text-green-600 hover:text-green-700"
+              title="Restore note"
+            >
+              <RotateCcw className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+
+        <div className="flex items-center gap-2">
+          {selectedNote.isTrashed ? (
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => permanentlyDeleteNote(selectedNote.id)}
+              className="text-red-600 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+            >
+              <Trash2 className="mr-2 h-4 w-4" />
+              Delete Permanently
+            </Button>
+          ) : (
+            <Button
+              variant="ghost"
+              size="icon"
+              onClick={() => deleteNote(selectedNote.id)}
+              className="text-gray-400 hover:text-red-500"
+              title="Move to trash"
+            >
+              <Trash className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
+      </div>
+
       <input
         ref={titleInputRef}
         type="text"

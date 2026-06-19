@@ -2,10 +2,22 @@ import { Search, Menu, Sun, Moon, Monitor, Eye, EyeOff } from 'lucide-react';
 import { useUIStore } from '../../store/uiStore';
 import { useNotesStore } from '../../store/notesStore';
 import { Button } from '../ui/Button';
+import { useLocation } from 'react-router-dom';
 
 export function Header() {
   const { toggleSidebar, theme, setTheme, privacyMode, togglePrivacyMode } = useUIStore();
   const { searchQuery, setSearchQuery } = useNotesStore();
+  const location = useLocation();
+
+  const getPageTitle = () => {
+    switch (location.pathname) {
+      case '/favorites': return 'Favorites';
+      case '/archive': return 'Archive';
+      case '/trash': return 'Trash';
+      case '/notes': return 'All Notes';
+      default: return 'Home';
+    }
+  };
 
   const toggleTheme = () => {
     if (theme === 'light') setTheme('dark');
@@ -25,7 +37,7 @@ export function Header() {
           <Menu className="h-5 w-5" />
         </button>
         <h1 className="text-lg font-semibold text-gray-900 dark:text-gray-100">
-          Home
+          {getPageTitle()}
         </h1>
       </div>
 

@@ -2,22 +2,28 @@ import { Plus, Search } from 'lucide-react';
 import { useNotesStore } from '../../store/notesStore';
 import { NoteCard } from './NoteCard';
 import { Button } from '../ui/Button';
+import { useLocation } from 'react-router-dom';
 
 export function NotesList() {
   const { selectedNoteId, selectNote, createNote, searchQuery, setSearchQuery, getFilteredNotes } = useNotesStore();
+  const location = useLocation();
 
-  const filteredNotes = getFilteredNotes();
+  const filteredNotes = getFilteredNotes(location.pathname);
 
   return (
     <div className="flex h-full w-full lg:w-80 flex-col border-r border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950">
       <div className="p-4 space-y-4">
         <div className="flex items-center justify-between">
           <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider">
-            Notes
+            {location.pathname === '/favorites' ? 'Favorites' :
+             location.pathname === '/archive' ? 'Archive' :
+             location.pathname === '/trash' ? 'Trash' : 'Notes'}
           </h2>
-          <Button variant="ghost" size="icon" className="h-8 w-8" onClick={createNote}>
-            <Plus className="h-4 w-4" />
-          </Button>
+          {location.pathname !== '/trash' && (
+            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={createNote}>
+              <Plus className="h-4 w-4" />
+            </Button>
+          )}
         </div>
 
         <div className="relative sm:hidden">

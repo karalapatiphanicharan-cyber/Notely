@@ -1,6 +1,6 @@
 import type { Note } from '../../types/note';
 import { cn } from '../../utils/cn';
-import { Trash2, EyeOff } from 'lucide-react';
+import { Trash2, EyeOff, Pin, Star } from 'lucide-react';
 import { useNotesStore } from '../../store/notesStore';
 import { useUIStore } from '../../store/uiStore';
 
@@ -43,15 +43,21 @@ export function NoteCard({ note, isActive, onClick }: NoteCardProps) {
       )}
     >
       <div className="flex justify-between items-start mb-1">
-        <h4 className={cn(
-          "line-clamp-1 flex-1 font-medium text-gray-900 dark:text-gray-100",
-          !note.title.trim() && "text-gray-400 italic"
-        )}>
-          {note.title.trim() || "Untitled"}
-        </h4>
-        <span className="text-[10px] text-gray-400 whitespace-nowrap ml-2 pt-1">
-          {formatTime(note.updatedAt)}
-        </span>
+        <div className="flex-1 flex items-center gap-1.5 min-w-0">
+          {note.isPinned && <Pin className="h-3 w-3 fill-blue-500 text-blue-500 shrink-0" />}
+          <h4 className={cn(
+            "line-clamp-1 font-medium text-gray-900 dark:text-gray-100",
+            !note.title.trim() && "text-gray-400 italic"
+          )}>
+            {note.title.trim() || "Untitled"}
+          </h4>
+        </div>
+        <div className="flex items-center gap-2 ml-2 shrink-0">
+          {note.isFavorite && <Star className="h-3 w-3 fill-yellow-400 text-yellow-400" />}
+          <span className="text-[10px] text-gray-400 whitespace-nowrap pt-1">
+            {formatTime(note.updatedAt)}
+          </span>
+        </div>
       </div>
       {privacyMode ? (
         <div className="flex items-center gap-1.5 text-gray-400 italic text-[10px]">

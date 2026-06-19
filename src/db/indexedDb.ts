@@ -10,15 +10,22 @@ interface NotelyDB extends DBSchema {
 }
 
 const DATABASE_NAME = 'notely-db';
-const DATABASE_VERSION = 1;
+const DATABASE_VERSION = 2;
 
 export async function initDB(): Promise<IDBPDatabase<NotelyDB>> {
   return openDB<NotelyDB>(DATABASE_NAME, DATABASE_VERSION, {
-    upgrade(db) {
-      const store = db.createObjectStore('notes', {
-        keyPath: 'id',
-      });
-      store.createIndex('by-updated', 'updatedAt');
+    upgrade(db, oldVersion) {
+      if (oldVersion < 1) {
+        const store = db.createObjectStore('notes', {
+          keyPath: 'id',
+        });
+        store.createIndex('by-updated', 'updatedAt');
+      }
+
+      if (oldVersion < 2) {
+        // Migration will be handled by the store when loading if needed,
+        // or we can iterate here using transaction.objectStore('notes').
+      }
     },
   });
 }
