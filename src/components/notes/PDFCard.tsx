@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import type { Attachment } from '../../types/attachment';
 import { FileText, X, ExternalLink } from 'lucide-react';
 import { Button } from '../ui/Button';
+import { ConfirmModal } from '../ui/ConfirmModal';
 
 interface PDFCardProps {
   attachment: Attachment;
@@ -8,6 +10,7 @@ interface PDFCardProps {
 }
 
 export function PDFCard({ attachment, onRemove }: PDFCardProps) {
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const formatSize = (bytes: number) => {
     if (bytes === 0) return '0 B';
     const k = 1024;
@@ -50,16 +53,22 @@ export function PDFCard({ attachment, onRemove }: PDFCardProps) {
           variant="ghost"
           size="icon"
           className="h-7 w-7 text-gray-400 hover:text-red-600"
-          onClick={() => {
-            if (confirm('Are you sure you want to remove this PDF?')) {
-              onRemove(attachment.id);
-            }
-          }}
+          onClick={() => setShowDeleteConfirm(true)}
           title="Remove PDF"
         >
           <X className="h-3.5 w-3.5" />
         </Button>
       </div>
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title="Delete PDF?"
+        message="Are you sure you want to permanently remove this PDF?"
+        onConfirm={() => {
+          onRemove(attachment.id);
+          setShowDeleteConfirm(false);
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

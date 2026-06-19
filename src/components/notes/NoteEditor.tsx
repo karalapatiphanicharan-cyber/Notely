@@ -17,7 +17,9 @@ import {
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/Button';
+import { ConfirmModal } from '../ui/ConfirmModal';
 import ReactMarkdown from 'react-markdown';
+import { cn } from '../../utils/cn';
 
 export function NoteEditor() {
   const {
@@ -32,9 +34,10 @@ export function NoteEditor() {
     deleteNote,
     permanentlyDeleteNote
   } = useNotesStore();
-  const { privacyMode, togglePrivacyMode } = useUIStore();
+  const { privacyMode } = useUIStore();
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [isEditMode, setIsEditMode] = useState(true);
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
 
   const selectedNote = notes.find((n) => n.id === selectedNoteId);
 
@@ -59,7 +62,7 @@ export function NoteEditor() {
   }
 
   return (
-    <div className="flex h-full flex-col p-8 lg:p-12">
+    <div className="flex h-full flex-col p-8 lg:p-12 relative overflow-hidden">
       <div className="mb-8 flex items-center justify-between">
         <div className="flex items-center gap-1">
           {!selectedNote.isTrashed && (
@@ -112,38 +115,19 @@ export function NoteEditor() {
               <Button
                 variant="ghost"
                 size="sm"
-                onClick={togglePrivacyMode}
-                className={privacyMode ? "text-blue-600 font-bold" : "text-gray-900 dark:text-gray-100"}
-                title={privacyMode ? "Disable Privacy Mode" : "Enable Privacy Mode"}
-              >
-                {privacyMode ? (
-                  <>
-                    <EyeOff className="mr-2 h-4 w-4" />
-                    Privacy On
-                  </>
-                ) : (
-                  <>
-                    <Eye className="mr-2 h-4 w-4" />
-                    Privacy
-                  </>
-                )}
-              </Button>
-              <Button
-                variant="ghost"
-                size="sm"
                 onClick={() => setIsEditMode(!isEditMode)}
                 className="text-gray-900 font-bold dark:text-gray-100"
-                title={isEditMode ? "Switch to Preview" : "Switch to Edit"}
+                title={isEditMode ? "Switch to Preview Mode" : "Switch to Edit Mode"}
               >
                 {isEditMode ? (
                   <>
-                    <Eye className="mr-2 h-4 w-4" />
-                    Preview
+                    <Eye className="h-4 w-4 lg:mr-2" />
+                    <span className="hidden lg:inline">Preview Mode</span>
                   </>
                 ) : (
                   <>
-                    <Edit3 className="mr-2 h-4 w-4" />
-                    Edit
+                    <Edit3 className="h-4 w-4 lg:mr-2" />
+                    <span className="hidden lg:inline">Edit Mode</span>
                   </>
                 )}
               </Button>
@@ -154,64 +138,76 @@ export function NoteEditor() {
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => permanentlyDeleteNote(selectedNote.id)}
+              onClick={() => setShowDeleteConfirm(true)}
               className="text-red-600 font-bold hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+              title="Delete Permanently"
             >
-              <Trash2 className="mr-2 h-4 w-4" />
-              Delete Permanently
+              <Trash2 className="h-4 w-4 lg:mr-2" />
+              <span className="hidden lg:inline">Delete Permanently</span>
             </Button>
           ) : (
             <Button
               variant="ghost"
               size="sm"
-              onClick={() => deleteNote(selectedNote.id)}
+              onClick={() => setShowDeleteConfirm(true)}
               className="text-red-600 font-bold hover:text-red-700"
               title="Move to trash"
             >
-              <Trash className="mr-2 h-4 w-4" />
-              Delete
+              <Trash className="h-4 w-4 lg:mr-2" />
+              <span className="hidden lg:inline">Delete</span>
             </Button>
           )}
         </div>
       </div>
 
-      <input
-        ref={titleInputRef}
-        type="text"
-        placeholder="Untitled Note"
-        value={selectedNote.title}
-        onChange={(e) => updateNote(selectedNote.id, { title: e.target.value })}
-        className="mb-6 w-full bg-transparent text-4xl font-bold tracking-tight outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800"
-      />
-      <div className="relative flex-1">
+      <div className="relative flex-1 flex flex-col">
         {privacyMode && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white/90 backdrop-blur-sm dark:bg-gray-950/90">
+          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white dark:bg-gray-950">
             <div className="flex flex-col items-center gap-4 text-center">
-              <div className="rounded-full bg-gray-100 p-4 dark:bg-gray-900">
-                <EyeOff className="h-8 w-8 text-gray-400" />
+              <div className="rounded-full bg-gray-50 p-6 dark:bg-gray-900">
+                <EyeOff className="h-12 w-12 text-gray-300" />
               </div>
-              <div>
-                <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-100">Content Hidden</h3>
-                <p className="text-sm text-gray-500 dark:text-gray-400">Disable Privacy Mode to view and edit this note.</p>
+              <div className="space-y-2">
+                <h3 className="text-xl font-bold text-gray-900 dark:text-gray-100">🔒 Content Hidden</h3>
+                <p className="text-sm text-gray-500 dark:text-gray-400">
+                  Privacy Mode is enabled.<br />
+                  Disable Privacy Mode to reveal this note.
+                </p>
               </div>
             </div>
           </div>
         )}
-        {isEditMode ? (
-          <textarea
-            placeholder="Start writing..."
-            value={selectedNote.content}
-            onChange={(e) => updateNote(selectedNote.id, { content: e.target.value })}
-            className="h-full w-full resize-none bg-transparent text-lg leading-relaxed outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800"
-          />
-        ) : (
-          <div className="h-full w-full overflow-y-auto prose dark:prose-invert max-w-none prose-slate">
-            <ReactMarkdown>{selectedNote.content || "_No content to preview_"}</ReactMarkdown>
-          </div>
-        )}
+
+        <input
+          ref={titleInputRef}
+          type="text"
+          placeholder="Untitled Note"
+          value={selectedNote.title}
+          disabled={privacyMode}
+          onChange={(e) => updateNote(selectedNote.id, { title: e.target.value })}
+          className={cn(
+            "mb-6 w-full bg-transparent text-4xl font-bold tracking-tight outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800 transition-opacity",
+            privacyMode && "opacity-0"
+          )}
+        />
+        <div className={cn("flex-1", privacyMode && "opacity-0")}>
+          {isEditMode ? (
+            <textarea
+              placeholder="Start writing..."
+              value={selectedNote.content}
+              disabled={privacyMode}
+              onChange={(e) => updateNote(selectedNote.id, { content: e.target.value })}
+              className="h-full w-full resize-none bg-transparent text-lg leading-relaxed outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800"
+            />
+          ) : (
+            <div className="h-full w-full overflow-y-auto prose dark:prose-invert max-w-none prose-slate">
+              <ReactMarkdown>{selectedNote.content || "_No content to preview_"}</ReactMarkdown>
+            </div>
+          )}
+        </div>
       </div>
 
-      <div className="mt-auto pt-12 flex flex-wrap items-center justify-between gap-4 border-t border-gray-100 pt-6 text-[10px] font-medium uppercase tracking-widest text-gray-400 dark:border-gray-900">
+      <div className="mt-auto mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-gray-100 pt-6 text-[10px] font-medium uppercase tracking-widest text-gray-400 dark:border-gray-900">
         <div className="flex items-center gap-6">
           <div className="flex items-center gap-1.5">
             <span className="text-gray-900 dark:text-gray-100">
@@ -243,6 +239,23 @@ export function NoteEditor() {
           }).format(selectedNote.updatedAt)}</span>
         </div>
       </div>
+
+      <ConfirmModal
+        isOpen={showDeleteConfirm}
+        title={selectedNote.isTrashed ? "Permanently Delete Note?" : "Move Note to Trash?"}
+        message={selectedNote.isTrashed
+          ? "This action cannot be undone. This note and all its attachments will be lost forever."
+          : "Are you sure you want to move this note to the trash?"}
+        onConfirm={() => {
+          if (selectedNote.isTrashed) {
+            permanentlyDeleteNote(selectedNote.id);
+          } else {
+            deleteNote(selectedNote.id);
+          }
+          setShowDeleteConfirm(false);
+        }}
+        onCancel={() => setShowDeleteConfirm(false)}
+      />
     </div>
   );
 }

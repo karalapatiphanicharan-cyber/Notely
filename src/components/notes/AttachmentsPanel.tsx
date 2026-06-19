@@ -53,8 +53,8 @@ export function AttachmentsPanel() {
 
   if (!isAttachmentsOpen) {
     return (
-      <div className="flex h-full w-12 flex-col items-center border-l border-gray-200 bg-white py-4 dark:border-gray-800 dark:bg-gray-950 transition-all duration-300">
-        <Button variant="ghost" size="icon" onClick={toggleAttachmentsPanel} className="mb-4">
+      <div className="flex h-full w-16 flex-col items-center border-l border-gray-200 bg-white py-4 dark:border-gray-800 dark:bg-gray-950 transition-all duration-300">
+        <Button variant="ghost" size="icon" onClick={toggleAttachmentsPanel} className="mb-4 h-8 w-8 text-gray-400 hover:text-gray-900 dark:hover:text-gray-100">
           <ChevronLeft className="h-4 w-4" />
         </Button>
         <Paperclip className="h-5 w-5 text-gray-400" />
@@ -64,10 +64,10 @@ export function AttachmentsPanel() {
 
   return (
     <div className="flex h-full w-80 flex-col border-l border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-950 transition-all duration-300 overflow-hidden">
-      <div className="p-6 border-b border-gray-100 dark:border-gray-900">
-        <div className="flex items-center justify-between mb-6">
+      <div className="p-4 border-b border-gray-100 dark:border-gray-900">
+        <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-2">
-            <Button variant="ghost" size="icon" className="h-8 w-8" onClick={toggleAttachmentsPanel}>
+            <Button variant="ghost" size="icon" className="h-8 w-8 text-gray-400 hover:text-gray-900 dark:hover:text-gray-100" onClick={toggleAttachmentsPanel}>
               <ChevronRight className="h-4 w-4" />
             </Button>
             <h3 className="text-xs font-bold uppercase tracking-widest text-gray-400 flex items-center gap-2">
@@ -102,9 +102,11 @@ export function AttachmentsPanel() {
 
       <div className="flex-1 overflow-y-auto p-6 space-y-8">
         {privacyMode ? (
-          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50/50 py-12 dark:border-gray-800 dark:bg-gray-900/50">
-            <EyeOff className="mb-3 h-6 w-6 text-gray-300 dark:text-gray-700" />
-            <p className="text-sm font-medium text-gray-400">🔒 Attachments Hidden</p>
+          <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900 py-12">
+            <EyeOff className="mb-3 h-6 w-6 text-gray-300" />
+            <p className="text-xs font-bold uppercase tracking-widest text-gray-400 text-center px-4">
+              🔒 Attachments Hidden
+            </p>
           </div>
         ) : (
           <>
