@@ -268,11 +268,14 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       flushUpdate(selectedNoteId, notes);
     }
 
-    set({ selectedNoteId: id });
+    // Immediately clear attachments and update ID to avoid stale UI
+    set({
+      selectedNoteId: id,
+      selectedNoteAttachments: []
+    });
+
     if (id) {
       get().loadAttachments(id);
-    } else {
-      set({ selectedNoteAttachments: [] });
     }
   },
 
@@ -287,7 +290,10 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   loadAttachments: async (noteId) => {
     try {
       const attachments = await attachmentsRepository.getAttachmentsByNote(noteId);
-      set({ selectedNoteAttachments: attachments });
+      // Ensure we only set attachments if the note is still selected
+      if (get().selectedNoteId === noteId) {
+        set({ selectedNoteAttachments: attachments });
+      }
     } catch (error) {
       console.error('Failed to load attachments:', error);
     }

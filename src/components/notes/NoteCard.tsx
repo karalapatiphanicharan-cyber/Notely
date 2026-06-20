@@ -3,6 +3,7 @@ import { cn } from '../../utils/cn';
 import { Trash2, EyeOff, Pin, Star } from 'lucide-react';
 import { useNotesStore } from '../../store/notesStore';
 import { useUIStore } from '../../store/uiStore';
+import { useEffect, useRef } from 'react';
 
 interface NoteCardProps {
   note: Note;
@@ -13,6 +14,13 @@ interface NoteCardProps {
 export function NoteCard({ note, isActive, onClick }: NoteCardProps) {
   const deleteNote = useNotesStore((state) => state.deleteNote);
   const privacyMode = useUIStore((state) => state.privacyMode);
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isActive && cardRef.current) {
+      cardRef.current.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+    }
+  }, [isActive]);
 
   const formatPreview = (content: string) => {
     // Remove code block markers for preview
@@ -44,6 +52,7 @@ export function NoteCard({ note, isActive, onClick }: NoteCardProps) {
 
   return (
     <div
+      ref={cardRef}
       onClick={onClick}
       className={cn(
         "group relative cursor-pointer rounded-lg p-4 transition-all hover:bg-gray-50 dark:hover:bg-gray-900",
