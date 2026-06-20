@@ -17,7 +17,8 @@ import {
   Link as LinkIcon,
   Code,
   ChevronRight,
-  ChevronDown
+  ChevronDown,
+  Copy as CopyIcon
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/Button';
@@ -27,6 +28,7 @@ import { CodeModal } from './CodeModal';
 import ReactMarkdown from 'react-markdown';
 import remarkGfm from 'remark-gfm';
 import { cn } from '../../utils/cn';
+import { useToastStore } from '../../store/toastStore';
 
 export function NoteEditor() {
   const {
@@ -78,7 +80,7 @@ export function NoteEditor() {
 
   const handleInsertCode = (language: string, code: string) => {
     if (!selectedNote) return;
-    const codeMarkdown = `\n:::code[${language}]\n${code}\n:::\n`;
+    const codeMarkdown = `\n:::code{label="${language}"}\n${code}\n:::\n`;
     updateNote(selectedNote.id, { content: selectedNote.content + codeMarkdown });
   };
 
@@ -230,46 +232,48 @@ export function NoteEditor() {
             privacyMode && "opacity-0"
           )}
         />
-        <div className={cn("flex-1", privacyMode && "opacity-0")}>
+        <div className={cn("flex-1 overflow-y-auto", privacyMode && "opacity-0")}>
           {isEditMode ? (
             <textarea
               placeholder="Start writing..."
               value={selectedNote.content}
               disabled={privacyMode}
               onChange={(e) => updateNote(selectedNote.id, { content: e.target.value })}
-              className="h-full w-full resize-none bg-transparent text-lg leading-relaxed outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800"
+              className="min-h-full w-full resize-none bg-transparent text-lg leading-relaxed outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800"
             />
           ) : (
-            <div className="h-full w-full overflow-y-auto prose dark:prose-invert max-w-none prose-slate">
-              <ReactMarkdown
-                remarkPlugins={[remarkGfm]}
-                components={{
-                  a: ({ ...props }) => (
-                    <a
-                      {...props}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="text-blue-600 underline hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
-                    />
-                  ),
-                  p: ({ children }) => {
-                    const content = Array.isArray(children) ? children.join('') : String(children);
-                    const codeMatch = content.match(/^:::code\[(.*?)]\n([\s\S]*?)\n:::$/);
-
-                    if (codeMatch) {
-                      return (
-                        <CollapsibleCodeBlock language={codeMatch[1]}>
-                          {codeMatch[2]}
-                        </CollapsibleCodeBlock>
-                      );
-                    }
-
-                    return <p>{children}</p>;
-                  }
-                }}
-              >
-                {selectedNote.content || "_No content to preview_"}
-              </ReactMarkdown>
+            <div className="w-full prose dark:prose-invert max-w-none prose-slate pb-8">
+              {selectedNote.content.split(/(:::code\{label=".*?"\}\n[\s\S]*?\n:::)/g).map((part, index) => {
+                const match = part.match(/:::code\{label="(.*?)"\}\n([\s\S]*?)\n:::/);
+                if (match) {
+                  return (
+                    <CollapsibleCodeBlock key={index} language={match[1]}>
+                      {match[2]}
+                    </CollapsibleCodeBlock>
+                  );
+                }
+                return (
+                  <ReactMarkdown
+                    key={index}
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      a: ({ children, ...props }) => (
+                        <a
+                          {...props}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-blue-600 underline hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors cursor-pointer group"
+                        >
+                          <LinkIcon className="h-3.5 w-3.5 opacity-70 group-hover:opacity-100" />
+                          {children}
+                        </a>
+                      )
+                    }}
+                  >
+                    {part || (index === 0 && selectedNote.content === "" ? "_No content to preview_" : "")}
+                  </ReactMarkdown>
+                );
+              })}
             </div>
           )}
         </div>
@@ -340,27 +344,55 @@ export function NoteEditor() {
   );
 }
 
-function CollapsibleCodeBlock({ language, children }: { language: string, children: React.ReactNode }) {
+function CollapsibleCodeBlock({ language, children }: { language: string, children: string }) {
   const [isOpen, setIsOpen] = useState(false);
+  const addToast = useToastStore((state) => state.addToast);
+
+  const lineCount = children.trim().split('\n').length;
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(children).then(() => {
+      addToast('Code copied to clipboard');
+    });
+  };
 
   return (
-    <div className="my-4 overflow-hidden rounded-lg border border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
-      <button
+    <div className="my-4 overflow-hidden rounded-lg border border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50 group/code">
+      <div
         onClick={() => setIsOpen(!isOpen)}
-        className="flex w-full items-center justify-between px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-900"
+        className="flex flex-col sm:flex-row w-full sm:items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-900 cursor-pointer gap-2"
       >
-        <span className="flex items-center gap-2">
-          {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
-          {language} Code
-        </span>
-        <span className="text-[10px] text-gray-400 uppercase tracking-widest">
-          {isOpen ? 'Click to collapse' : 'Click to expand'}
-        </span>
-      </button>
+        <div className="flex items-center gap-3 min-w-0">
+          {isOpen ? <ChevronDown className="h-4 w-4 shrink-0 text-gray-400" /> : <ChevronRight className="h-4 w-4 shrink-0 text-gray-400" />}
+          <div className="flex items-center gap-2 truncate">
+            <span className="truncate">{language} Code</span>
+            <span className="text-[10px] text-gray-400 uppercase tracking-widest font-normal whitespace-nowrap">
+              ({lineCount} {lineCount === 1 ? 'line' : 'lines'})
+            </span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 self-end sm:self-auto">
+          <button
+            onClick={handleCopy}
+            className="inline-flex items-center gap-1.5 rounded-md bg-white dark:bg-gray-800 px-2 py-1 text-[10px] text-gray-600 dark:text-gray-400 border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm active:scale-95"
+          >
+            <CopyIcon className="h-3 w-3" />
+            <span>📋 Copy</span>
+          </button>
+          {!isOpen && (
+            <span className="hidden sm:inline text-[10px] text-gray-300 dark:text-gray-600 uppercase tracking-widest font-normal">
+              Click to expand
+            </span>
+          )}
+        </div>
+      </div>
+
       {isOpen && (
-        <div className="border-t border-gray-100 p-4 dark:border-gray-800">
-          <pre className="m-0 overflow-x-auto p-0 bg-transparent">
-            <code className="text-sm font-mono leading-relaxed whitespace-pre">
+        <div className="border-t border-gray-100 p-4 dark:border-gray-800 bg-white/50 dark:bg-gray-950/30 overflow-x-auto">
+          <pre className="m-0 p-0 bg-transparent">
+            <code className="text-sm font-mono leading-relaxed whitespace-pre block">
               {children}
             </code>
           </pre>

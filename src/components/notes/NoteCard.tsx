@@ -14,6 +14,14 @@ export function NoteCard({ note, isActive, onClick }: NoteCardProps) {
   const deleteNote = useNotesStore((state) => state.deleteNote);
   const privacyMode = useUIStore((state) => state.privacyMode);
 
+  const formatPreview = (content: string) => {
+    // Remove code block markers for preview
+    return content
+      .replace(/:::code\{label=".*?"\}\n([\s\S]*?)\n:::/g, '$1')
+      .replace(/\n+/g, ' ')
+      .trim();
+  };
+
   const formatTime = (timestamp: number) => {
     const date = new Date(timestamp);
     const now = new Date();
@@ -67,7 +75,7 @@ export function NoteCard({ note, isActive, onClick }: NoteCardProps) {
       ) : (
         note.content.trim() && (
           <p className="line-clamp-2 text-xs leading-relaxed text-gray-500 dark:text-gray-400">
-            {note.content.trim()}
+            {formatPreview(note.content)}
           </p>
         )
       )}

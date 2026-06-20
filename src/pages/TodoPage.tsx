@@ -298,12 +298,30 @@ export function TodoPage() {
                       <div className="flex-1 min-w-0">
                         <input
                           className={cn(
-                            "w-full bg-transparent border-none p-0 focus:ring-0 text-sm transition-all",
+                            "w-full bg-transparent border-none p-0 focus:ring-0 text-sm transition-all mb-1",
                             task.isCompleted && "text-gray-400 line-through"
                           )}
                           value={task.title}
                           onChange={(e) => updateTask(task.id, e.target.value)}
                         />
+                        <div className="flex items-center gap-2">
+                          {(['low', 'medium', 'high'] as const).map((p) => (
+                            <button
+                              key={p}
+                              onClick={() => useTodoStore.getState().updateTask(task.id, task.title, p)}
+                              className={cn(
+                                "px-1.5 py-0.5 rounded text-[9px] uppercase font-bold transition-all",
+                                task.priority === p
+                                  ? p === 'high' ? "bg-red-100 text-red-600 dark:bg-red-900/30" :
+                                    p === 'medium' ? "bg-yellow-100 text-yellow-600 dark:bg-yellow-900/30" :
+                                    "bg-blue-100 text-blue-600 dark:bg-blue-900/30"
+                                  : "bg-gray-50 text-gray-400 hover:bg-gray-100 dark:bg-gray-900 dark:hover:bg-gray-800"
+                              )}
+                            >
+                              {p}
+                            </button>
+                          ))}
+                        </div>
                       </div>
                       <button
                         onClick={() => deleteTask(task.id)}

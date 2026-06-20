@@ -1,6 +1,7 @@
 import type { ReactNode } from 'react';
 import { Sidebar } from './Sidebar';
 import { Header } from './Header';
+import { Toast } from '../ui/Toast';
 import { useUIStore } from '../../store/uiStore';
 import { useEffect } from 'react';
 
@@ -30,6 +31,7 @@ export function MainLayout({ children }: MainLayoutProps) {
       <Sidebar />
       <div className="flex flex-1 flex-col overflow-hidden">
         <Header />
+        <Toast />
         <main className="flex-1 overflow-hidden">
           {children}
         </main>
