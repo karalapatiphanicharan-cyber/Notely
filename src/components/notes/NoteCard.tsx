@@ -23,9 +23,12 @@ export function NoteCard({ note, isActive, onClick }: NoteCardProps) {
   }, [isActive]);
 
   const formatPreview = (content: string) => {
-    // Remove code block markers for preview
+    // Completely remove custom code blocks and their content for cards
+    // And also strip markdown links and standard code blocks
     return content
-      .replace(/:::code\{label=".*?"\}\n([\s\S]*?)\n:::/g, '$1')
+      .replace(/:::code\{label=".*?"\}\n([\s\S]*?)\n:::/g, '')
+      .replace(/```[\s\S]*?```/g, '')
+      .replace(/\[(.*?)\]\(.*?\)/g, '$1')
       .replace(/\n+/g, ' ')
       .trim();
   };
