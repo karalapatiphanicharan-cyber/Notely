@@ -1,5 +1,5 @@
 import { create } from 'zustand';
-import type { TodoList, Task } from '../types/todo';
+import type { TodoList, Task, Priority } from '../types/todo';
 import { todoRepository } from '../db/todoRepository';
 
 interface TodoState {
@@ -19,7 +19,7 @@ interface TodoState {
   loadTasks: (listId: string) => Promise<void>;
   addTask: (listId: string, title: string) => Promise<void>;
   toggleTask: (taskId: string) => Promise<void>;
-  updateTask: (taskId: string, title: string) => Promise<void>;
+  updateTask: (taskId: string, title: string, priority?: Priority) => Promise<void>;
   deleteTask: (taskId: string) => Promise<void>;
   setSearchQuery: (query: string) => void;
 }
@@ -116,11 +116,16 @@ export const useTodoStore = create<TodoState>((set, get) => ({
     }));
   },
 
-  updateTask: async (taskId, title) => {
+  updateTask: async (taskId, title, priority) => {
     const task = get().tasks.find((t) => t.id === taskId);
     if (!task) return;
 
-    const updatedTask = { ...task, title, updatedAt: Date.now() };
+    const updatedTask = {
+      ...task,
+      title,
+      priority: priority !== undefined ? priority : task.priority,
+      updatedAt: Date.now()
+    };
     await todoRepository.saveTask(updatedTask);
     set((state) => ({
       tasks: state.tasks.map((t) => (t.id === taskId ? updatedTask : t)),
