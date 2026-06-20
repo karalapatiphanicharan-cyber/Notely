@@ -13,12 +13,19 @@ import {
   Edit3,
   Eye,
   Clock,
-  CheckCircle2
+  CheckCircle2,
+  Link as LinkIcon,
+  Code,
+  ChevronRight,
+  ChevronDown
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/Button';
 import { ConfirmModal } from '../ui/ConfirmModal';
+import { LinkModal } from './LinkModal';
+import { CodeModal } from './CodeModal';
 import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { cn } from '../../utils/cn';
 
 export function NoteEditor() {
@@ -38,6 +45,8 @@ export function NoteEditor() {
   const titleInputRef = useRef<HTMLInputElement>(null);
   const [isEditMode, setIsEditMode] = useState(true);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
+  const [showLinkModal, setShowLinkModal] = useState(false);
+  const [showCodeModal, setShowCodeModal] = useState(false);
 
   const selectedNote = notes.find((n) => n.id === selectedNoteId);
 
@@ -60,6 +69,18 @@ export function NoteEditor() {
       </div>
     );
   }
+
+  const handleInsertLink = (displayText: string, url: string) => {
+    if (!selectedNote) return;
+    const linkMarkdown = `\n[${displayText}](${url})\n`;
+    updateNote(selectedNote.id, { content: selectedNote.content + linkMarkdown });
+  };
+
+  const handleInsertCode = (language: string, code: string) => {
+    if (!selectedNote) return;
+    const codeMarkdown = `\n:::code[${language}]\n${code}\n:::\n`;
+    updateNote(selectedNote.id, { content: selectedNote.content + codeMarkdown });
+  };
 
   return (
     <div className="flex h-full flex-col p-8 lg:p-12 relative overflow-hidden">
@@ -93,6 +114,25 @@ export function NoteEditor() {
                 title={selectedNote.isArchived ? "Restore from archive" : "Archive note"}
               >
                 <Archive className={selectedNote.isArchived ? "h-4 w-4 fill-current" : "h-4 w-4"} />
+              </Button>
+              <div className="mx-2 h-4 w-px bg-gray-200 dark:bg-gray-800" />
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowLinkModal(true)}
+                className="text-gray-400 hover:text-blue-600"
+                title="Insert Link"
+              >
+                <LinkIcon className="h-4 w-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowCodeModal(true)}
+                className="text-gray-400 hover:text-purple-600"
+                title="Insert Code Block"
+              >
+                <Code className="h-4 w-4" />
               </Button>
             </>
           )}
@@ -201,7 +241,35 @@ export function NoteEditor() {
             />
           ) : (
             <div className="h-full w-full overflow-y-auto prose dark:prose-invert max-w-none prose-slate">
-              <ReactMarkdown>{selectedNote.content || "_No content to preview_"}</ReactMarkdown>
+              <ReactMarkdown
+                remarkPlugins={[remarkGfm]}
+                components={{
+                  a: ({ ...props }) => (
+                    <a
+                      {...props}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="text-blue-600 underline hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+                    />
+                  ),
+                  p: ({ children }) => {
+                    const content = Array.isArray(children) ? children.join('') : String(children);
+                    const codeMatch = content.match(/^:::code\[(.*?)]\n([\s\S]*?)\n:::$/);
+
+                    if (codeMatch) {
+                      return (
+                        <CollapsibleCodeBlock language={codeMatch[1]}>
+                          {codeMatch[2]}
+                        </CollapsibleCodeBlock>
+                      );
+                    }
+
+                    return <p>{children}</p>;
+                  }
+                }}
+              >
+                {selectedNote.content || "_No content to preview_"}
+              </ReactMarkdown>
             </div>
           )}
         </div>
@@ -256,6 +324,48 @@ export function NoteEditor() {
         }}
         onCancel={() => setShowDeleteConfirm(false)}
       />
+
+      <LinkModal
+        isOpen={showLinkModal}
+        onClose={() => setShowLinkModal(false)}
+        onInsert={handleInsertLink}
+      />
+
+      <CodeModal
+        isOpen={showCodeModal}
+        onClose={() => setShowCodeModal(false)}
+        onInsert={handleInsertCode}
+      />
+    </div>
+  );
+}
+
+function CollapsibleCodeBlock({ language, children }: { language: string, children: React.ReactNode }) {
+  const [isOpen, setIsOpen] = useState(false);
+
+  return (
+    <div className="my-4 overflow-hidden rounded-lg border border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex w-full items-center justify-between px-4 py-2 text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-900"
+      >
+        <span className="flex items-center gap-2">
+          {isOpen ? <ChevronDown className="h-4 w-4" /> : <ChevronRight className="h-4 w-4" />}
+          {language} Code
+        </span>
+        <span className="text-[10px] text-gray-400 uppercase tracking-widest">
+          {isOpen ? 'Click to collapse' : 'Click to expand'}
+        </span>
+      </button>
+      {isOpen && (
+        <div className="border-t border-gray-100 p-4 dark:border-gray-800">
+          <pre className="m-0 overflow-x-auto p-0 bg-transparent">
+            <code className="text-sm font-mono leading-relaxed whitespace-pre">
+              {children}
+            </code>
+          </pre>
+        </div>
+      )}
     </div>
   );
 }

@@ -6,6 +6,7 @@ interface UIState {
   isSidebarOpen: boolean;
   isSidebarCollapsed: boolean;
   isNotesListCollapsed: boolean;
+  isTodoListCollapsed: boolean;
   isAttachmentsOpen: boolean;
   privacyMode: boolean;
   setTheme: (theme: 'light' | 'dark' | 'system') => void;
@@ -13,6 +14,7 @@ interface UIState {
   setSidebarOpen: (isOpen: boolean) => void;
   toggleSidebarCollapse: () => void;
   toggleNotesListCollapse: () => void;
+  toggleTodoListCollapse: () => void;
   toggleAttachmentsPanel: () => void;
   togglePrivacyMode: () => void;
 }
@@ -24,6 +26,7 @@ export const useUIStore = create<UIState>()(
       isSidebarOpen: true,
       isSidebarCollapsed: false,
       isNotesListCollapsed: false,
+      isTodoListCollapsed: false,
       isAttachmentsOpen: true,
       privacyMode: false,
       setTheme: (theme) => set({ theme }),
@@ -31,6 +34,7 @@ export const useUIStore = create<UIState>()(
       setSidebarOpen: (isOpen) => set({ isSidebarOpen: isOpen }),
       toggleSidebarCollapse: () => set((state) => ({ isSidebarCollapsed: !state.isSidebarCollapsed })),
       toggleNotesListCollapse: () => set((state) => ({ isNotesListCollapsed: !state.isNotesListCollapsed })),
+      toggleTodoListCollapse: () => set((state) => ({ isTodoListCollapsed: !state.isTodoListCollapsed })),
       toggleAttachmentsPanel: () => set((state) => ({ isAttachmentsOpen: !state.isAttachmentsOpen })),
       togglePrivacyMode: () => set((state) => ({ privacyMode: !state.privacyMode })),
     }),
