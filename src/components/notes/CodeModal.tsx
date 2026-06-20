@@ -9,7 +9,7 @@ interface CodeModalProps {
 }
 
 const LANGUAGES = [
-  'Java', 'Python', 'JavaScript', 'TypeScript', 'C++', 'C', 'HTML', 'CSS', 'JSON', 'SQL', 'Other'
+  'Java', 'Python', 'JavaScript', 'TypeScript', 'C', 'C++', 'HTML', 'CSS', 'SQL', 'JSON', 'Other'
 ];
 
 export function CodeModal({ isOpen, onClose, onInsert }: CodeModalProps) {
