@@ -20,8 +20,12 @@
 </div>
 
 ---
+## 🌐 Live Demo
+
+https://notely-seven-phi.vercel.app
 
 ## 📖 About Notely
+
 
 Notely is a modern, privacy-focused note-taking application designed for the speed of thought. Built with an **offline-first** architecture, it ensures your data is always accessible and secure. By storing everything locally in your browser using **IndexedDB**, Notely eliminates the need for mandatory cloud accounts or external servers, putting you in complete control of your information.
 
