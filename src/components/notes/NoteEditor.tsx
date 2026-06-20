@@ -13,14 +13,20 @@ import {
   Clock,
   CheckCircle2,
   Link as LinkIcon,
-  Code
+  Code,
+  Edit3,
+  Check,
+  Copy as CopyIcon
 } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import { Button } from '../ui/Button';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { LinkModal } from './LinkModal';
 import { CodeModal } from './CodeModal';
+import ReactMarkdown from 'react-markdown';
+import remarkGfm from 'remark-gfm';
 import { cn } from '../../utils/cn';
+import { useToastStore } from '../../store/toastStore';
 
 export function NoteEditor() {
   const {
@@ -37,6 +43,7 @@ export function NoteEditor() {
   } = useNotesStore();
   const { privacyMode } = useUIStore();
   const titleInputRef = useRef<HTMLInputElement>(null);
+  const [isEditing, setIsEditing] = useState(false);
   const [showDeleteConfirm, setShowDeleteConfirm] = useState(false);
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [showCodeModal, setShowCodeModal] = useState(false);
@@ -54,6 +61,9 @@ export function NoteEditor() {
     // We use a small delay to avoid the "Calling setState synchronously within an effect" lint error
     // and to ensure the UI transition is smooth.
     const timeout = setTimeout(() => {
+      // Open in View mode if it has content, otherwise Edit mode for new notes
+      const isNewNote = !!(selectedNote && selectedNote.title === '' && selectedNote.content === '');
+      setIsEditing(isNewNote);
       setShowDeleteConfirm(false);
       setShowLinkModal(false);
       setShowCodeModal(false);
@@ -79,12 +89,14 @@ export function NoteEditor() {
     if (!selectedNote) return;
     const linkMarkdown = `\n[${displayText}](${url})\n`;
     updateNote(selectedNote.id, { content: selectedNote.content + linkMarkdown });
+    setIsEditing(false);
   };
 
   const handleInsertCode = (language: string, code: string) => {
     if (!selectedNote) return;
     const codeMarkdown = `\n:::code{label="${language}"}\n${code}\n:::\n`;
     updateNote(selectedNote.id, { content: selectedNote.content + codeMarkdown });
+    setIsEditing(false);
   };
 
   return (
@@ -119,6 +131,15 @@ export function NoteEditor() {
                 title={selectedNote.isArchived ? "Restore from archive" : "Archive note"}
               >
                 <Archive className={selectedNote.isArchived ? "h-4 w-4 fill-current" : "h-4 w-4"} />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="text-red-600 hover:text-red-700"
+                title="Move to trash"
+              >
+                <Trash className="h-4 w-4" />
               </Button>
               <div className="mx-2 h-4 w-px bg-gray-200 dark:bg-gray-800" />
               <Button
@@ -155,6 +176,30 @@ export function NoteEditor() {
         </div>
 
         <div className="flex items-center gap-2">
+          {!selectedNote.isTrashed && (
+            <>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsEditing(!isEditing)}
+                className="text-gray-900 font-bold dark:text-gray-100"
+                title={isEditing ? "View Note" : "Edit Note"}
+              >
+                {isEditing ? (
+                  <>
+                    <Check className="h-4 w-4 lg:mr-2" />
+                    <span className="hidden lg:inline">Done</span>
+                  </>
+                ) : (
+                  <>
+                    <Edit3 className="h-4 w-4 lg:mr-2" />
+                    <span className="hidden lg:inline">Edit</span>
+                  </>
+                )}
+              </Button>
+            </>
+          )}
+
           {selectedNote.isTrashed ? (
             <Button
               variant="ghost"
@@ -166,18 +211,7 @@ export function NoteEditor() {
               <Trash2 className="h-4 w-4 lg:mr-2" />
               <span className="hidden lg:inline">Delete Permanently</span>
             </Button>
-          ) : (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowDeleteConfirm(true)}
-              className="text-red-600 font-bold hover:text-red-700"
-              title="Move to trash"
-            >
-              <Trash className="h-4 w-4 lg:mr-2" />
-              <span className="hidden lg:inline">Delete</span>
-            </Button>
-          )}
+          ) : null}
         </div>
       </div>
 
@@ -212,13 +246,49 @@ export function NoteEditor() {
           )}
         />
         <div className={cn("flex-1 overflow-y-auto", privacyMode && "opacity-0")}>
-          <textarea
-            placeholder="Start writing..."
-            value={selectedNote.content}
-            disabled={privacyMode}
-            onChange={(e) => updateNote(selectedNote.id, { content: e.target.value })}
-            className="min-h-full w-full resize-none bg-transparent text-lg leading-relaxed outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800"
-          />
+          {isEditing ? (
+            <textarea
+              placeholder="Start writing..."
+              value={selectedNote.content}
+              disabled={privacyMode}
+              onChange={(e) => updateNote(selectedNote.id, { content: e.target.value })}
+              className="min-h-full w-full resize-none bg-transparent text-lg leading-relaxed outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800"
+            />
+          ) : (
+            <div className="w-full prose dark:prose-invert max-w-none prose-slate pb-8">
+              {selectedNote.content.split(/(:::code\{label=".*?"\}\n[\s\S]*?\n:::)/g).map((part, index) => {
+                const match = part.match(/:::code\{label="(.*?)"\}\n([\s\S]*?)\n:::/);
+                if (match) {
+                  return (
+                    <CollapsibleCodeBlock key={index} language={match[1]}>
+                      {match[2]}
+                    </CollapsibleCodeBlock>
+                  );
+                }
+                return (
+                  <ReactMarkdown
+                    key={index}
+                    remarkPlugins={[remarkGfm]}
+                    components={{
+                      a: ({ children, ...props }) => (
+                        <a
+                          {...props}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="inline-flex items-center gap-1.5 text-blue-600 underline hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 transition-colors cursor-pointer group font-medium"
+                        >
+                          <span>🔗</span>
+                          <span>{children}</span>
+                        </a>
+                      )
+                    }}
+                  >
+                    {part || (index === 0 && selectedNote.content === "" ? "_No content to display_" : "")}
+                  </ReactMarkdown>
+                );
+              })}
+            </div>
+          )}
         </div>
       </div>
 
@@ -287,3 +357,55 @@ export function NoteEditor() {
   );
 }
 
+function CollapsibleCodeBlock({ language, children }: { language: string, children: string }) {
+  const [isOpen, setIsOpen] = useState(false);
+  const addToast = useToastStore((state) => state.addToast);
+
+  const handleCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    navigator.clipboard.writeText(children).then(() => {
+      addToast('✓ Code copied to clipboard');
+    });
+  };
+
+  return (
+    <div className="my-4 overflow-hidden rounded-lg border border-gray-100 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50 group/code">
+      <div
+        onClick={() => setIsOpen(!isOpen)}
+        className="flex flex-col sm:flex-row w-full sm:items-center justify-between px-4 py-2.5 text-sm font-medium transition-colors hover:bg-gray-100 dark:hover:bg-gray-900 cursor-pointer gap-2"
+      >
+        <div className="flex items-center gap-3 min-w-0">
+          <span className="text-gray-400 shrink-0 w-4">{isOpen ? '▼' : '▶'}</span>
+          <div className="flex items-center gap-2 truncate">
+            <span className="truncate">{language} Code</span>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-3 self-start sm:self-auto ml-7 sm:ml-0">
+          <button
+            onClick={handleCopy}
+            className="inline-flex items-center gap-1.5 rounded-md bg-white dark:bg-gray-800 px-2 py-1 text-[10px] text-gray-600 dark:text-gray-400 border border-gray-100 dark:border-gray-700 hover:bg-gray-50 dark:hover:bg-gray-700 transition-all shadow-sm active:scale-95"
+          >
+            <CopyIcon className="h-3 w-3" />
+            <span>📋 Copy</span>
+          </button>
+          {!isOpen && (
+            <span className="hidden sm:inline text-[10px] text-gray-300 dark:text-gray-600 uppercase tracking-widest font-normal">
+              Click to expand
+            </span>
+          )}
+        </div>
+      </div>
+
+      {isOpen && (
+        <div className="border-t border-gray-100 p-4 dark:border-gray-800 bg-white/50 dark:bg-gray-950/30 overflow-x-auto">
+          <pre className="m-0 p-0 bg-transparent">
+            <code className="text-sm font-mono leading-relaxed whitespace-pre block">
+              {children}
+            </code>
+          </pre>
+        </div>
+      )}
+    </div>
+  );
+}

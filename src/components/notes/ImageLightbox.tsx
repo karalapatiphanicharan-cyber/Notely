@@ -46,7 +46,7 @@ export function ImageLightbox({ attachment, onClose }: ImageLightboxProps) {
           size="icon"
           className="h-10 w-10 rounded-full bg-white/10 text-white hover:bg-white/20"
           onClick={onClose}
-          title="Close preview"
+          title="Close"
         >
           <X className="h-5 w-5" />
         </Button>
