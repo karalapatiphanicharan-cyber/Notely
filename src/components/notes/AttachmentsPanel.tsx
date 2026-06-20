@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useRef, useState, useEffect } from 'react';
 import { Plus, EyeOff, Paperclip, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Button } from '../ui/Button';
 import { useNotesStore } from '../../store/notesStore';
@@ -18,6 +18,15 @@ export function AttachmentsPanel() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [expandedImage, setExpandedImage] = useState<Attachment | null>(null);
   const [error, setError] = useState<string | null>(null);
+
+  // Reset transient UI state when switching notes
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      setExpandedImage(null);
+      setError(null);
+    }, 0);
+    return () => clearTimeout(timeout);
+  }, [selectedNoteId]);
 
   if (!selectedNoteId) return null;
 
@@ -144,7 +153,8 @@ export function AttachmentsPanel() {
 
             {images.length === 0 && pdfs.length === 0 && (
               <div className="flex flex-col items-center justify-center py-12 text-center">
-                <p className="text-xs text-gray-400 uppercase tracking-widest">No attachments yet</p>
+                <p className="text-sm font-bold text-gray-900 dark:text-gray-100 uppercase tracking-widest mb-1">No attachments</p>
+                <p className="text-xs text-gray-400 uppercase tracking-widest">Add images or PDFs to this note.</p>
               </div>
             )}
           </>

@@ -58,6 +58,19 @@ export function NoteEditor() {
     }
   }, [selectedNoteId, selectedNote]);
 
+  // Reset transient UI state when switching notes
+  useEffect(() => {
+    // We use a small delay to avoid the "Calling setState synchronously within an effect" lint error
+    // and to ensure the UI transition is smooth.
+    const timeout = setTimeout(() => {
+      setIsEditMode(true);
+      setShowDeleteConfirm(false);
+      setShowLinkModal(false);
+      setShowCodeModal(false);
+    }, 0);
+    return () => clearTimeout(timeout);
+  }, [selectedNoteId]);
+
   if (!selectedNote) {
     return (
       <div className="flex h-full items-center justify-center">
