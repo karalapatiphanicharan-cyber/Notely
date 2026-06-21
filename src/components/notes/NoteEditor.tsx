@@ -20,7 +20,107 @@ import { Button } from '../ui/Button';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { LinkModal } from './LinkModal';
 import { CodeModal } from './CodeModal';
+import { CollapsibleCodeBlock } from './CollapsibleCodeBlock';
 import { cn } from '../../utils/cn';
+
+interface Segment {
+  id: string;
+  type: 'text' | 'code';
+  content: string;
+  metadata?: {
+    language?: string;
+    code?: string;
+  };
+}
+
+const CODE_REGEX = /:::code\{label="(.*?)"\}\n([\s\S]*?)\n:::/g;
+
+// Helper to convert DOM to Markdown
+const domToMd = (node: Node): string => {
+  let result = '';
+  node.childNodes.forEach(child => {
+    if (child.nodeType === Node.TEXT_NODE) {
+      result += child.textContent;
+    } else if (child.nodeName === 'A') {
+      const a = child as HTMLAnchorElement;
+      result += `[${a.textContent}](${a.getAttribute('href')})`;
+    } else if (child.nodeName === 'BR') {
+      result += '\n';
+    } else if (child.nodeName === 'DIV' || child.nodeName === 'P') {
+      const content = domToMd(child);
+      if (content) result += '\n' + content + '\n';
+    } else {
+      result += domToMd(child);
+    }
+  });
+  return result;
+};
+
+// Helper to convert Markdown (with links) to HTML
+const mdToHtml = (md: string) => {
+  if (!md) return '';
+  return md
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-blue-600 underline font-medium cursor-pointer hover:text-blue-700 transition-colors" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/\n/g, '<br>');
+};
+
+function RichTextEditor({
+  value,
+  onChange,
+  onFocus,
+  onBlur,
+  placeholder,
+  disabled
+}: {
+  value: string;
+  onChange: (val: string) => void;
+  onFocus: (el: HTMLDivElement) => void;
+  onBlur: (el: HTMLDivElement) => void;
+  placeholder?: string;
+  disabled?: boolean;
+}) {
+  const editorRef = useRef<HTMLDivElement>(null);
+  const [isInternalUpdate, setIsInternalUpdate] = useState(false);
+
+  useEffect(() => {
+    if (editorRef.current && !isInternalUpdate) {
+      const html = mdToHtml(value);
+      if (editorRef.current.innerHTML !== html) {
+        editorRef.current.innerHTML = html;
+      }
+    }
+    const timeout = setTimeout(() => {
+      setIsInternalUpdate(false);
+    }, 0);
+    return () => clearTimeout(timeout);
+  }, [value, isInternalUpdate]);
+
+  const handleInput = () => {
+    if (editorRef.current) {
+      const md = domToMd(editorRef.current);
+      setIsInternalUpdate(true);
+      onChange(md);
+    }
+  };
+
+  return (
+    <div
+      ref={editorRef}
+      contentEditable={!disabled}
+      onInput={handleInput}
+      onFocus={() => editorRef.current && onFocus(editorRef.current)}
+      onBlur={() => editorRef.current && onBlur(editorRef.current)}
+      className={cn(
+        "w-full min-h-[1.5em] text-lg leading-relaxed outline-none transition-all",
+        !value && "before:content-[attr(data-placeholder)] before:text-gray-200 dark:before:text-gray-800 before:pointer-events-none"
+      )}
+      data-placeholder={placeholder}
+    />
+  );
+}
 
 export function NoteEditor() {
   const {
@@ -41,6 +141,9 @@ export function NoteEditor() {
   const [showLinkModal, setShowLinkModal] = useState(false);
   const [showCodeModal, setShowCodeModal] = useState(false);
 
+  const activeEditorRef = useRef<HTMLDivElement | null>(null);
+  const lastSelectionRange = useRef<Range | null>(null);
+
   const selectedNote = notes.find((n) => n.id === selectedNoteId);
 
   useEffect(() => {
@@ -51,12 +154,12 @@ export function NoteEditor() {
 
   // Reset transient UI state when switching notes
   useEffect(() => {
-    // We use a small delay to avoid the "Calling setState synchronously within an effect" lint error
-    // and to ensure the UI transition is smooth.
     const timeout = setTimeout(() => {
       setShowDeleteConfirm(false);
       setShowLinkModal(false);
       setShowCodeModal(false);
+      activeEditorRef.current = null;
+      lastSelectionRange.current = null;
     }, 0);
     return () => clearTimeout(timeout);
   }, [selectedNoteId]);
@@ -75,16 +178,124 @@ export function NoteEditor() {
     );
   }
 
+  const parseContent = (content: string): Segment[] => {
+    const segments: Segment[] = [];
+    const matches: { index: number; length: number; segment: Segment }[] = [];
+
+    // Find code blocks
+    let codeMatch;
+    const codeRegexClone = new RegExp(CODE_REGEX);
+    while ((codeMatch = codeRegexClone.exec(content)) !== null) {
+      matches.push({
+        index: codeMatch.index,
+        length: codeMatch[0].length,
+        segment: {
+          id: `code-${codeMatch.index}`,
+          type: 'code',
+          content: codeMatch[0],
+          metadata: { language: codeMatch[1], code: codeMatch[2] }
+        }
+      });
+    }
+
+    matches.sort((a, b) => a.index - b.index);
+
+    let currentIdx = 0;
+    for (const match of matches) {
+      if (match.index > currentIdx) {
+        segments.push({
+          id: `text-${currentIdx}`,
+          type: 'text',
+          content: content.substring(currentIdx, match.index)
+        });
+      }
+      segments.push(match.segment);
+      currentIdx = match.index + match.length;
+    }
+
+    if (currentIdx < content.length || segments.length === 0) {
+      segments.push({
+        id: `text-${currentIdx}`,
+        type: 'text',
+        content: content.substring(currentIdx)
+      });
+    }
+
+    return segments;
+  };
+
+  const segments = parseContent(selectedNote.content);
+
+  const handleUpdateSegment = (segmentId: string, newText: string) => {
+    const newSegments = segments.map(s => s.id === segmentId ? { ...s, content: newText } : s);
+    const newContent = newSegments.map(s => s.content).join('');
+    updateNote(selectedNote.id, { content: newContent });
+  };
+
+  const handleRemoveSegment = (segmentId: string) => {
+    const newSegments = segments.filter(s => s.id !== segmentId);
+    const newContent = newSegments.map(s => s.content).join('');
+    updateNote(selectedNote.id, { content: newContent });
+  };
+
   const handleInsertLink = (displayText: string, url: string) => {
     if (!selectedNote) return;
-    const linkMarkdown = `\n[${displayText}](${url})\n`;
-    updateNote(selectedNote.id, { content: selectedNote.content + linkMarkdown });
+
+    if (activeEditorRef.current && lastSelectionRange.current) {
+      const range = lastSelectionRange.current;
+      const selection = window.getSelection();
+      if (selection) {
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.className = "text-blue-600 underline font-medium cursor-pointer hover:text-blue-700 transition-colors";
+        a.target = "_blank";
+        a.rel = "noopener noreferrer";
+        a.textContent = displayText;
+
+        range.deleteContents();
+        range.insertNode(a);
+
+        range.setStartAfter(a);
+        range.collapse(true);
+        selection.removeAllRanges();
+        selection.addRange(range);
+
+        const md = domToMd(activeEditorRef.current);
+        const segmentId = segments.find(s => s.type === 'text' && activeEditorRef.current?.contains(activeEditorRef.current))?.id || segments.find(s => s.type === 'text')?.id || '';
+        handleUpdateSegment(segmentId, md);
+        return;
+      }
+    }
+
+    // Fallback: append
+    const linkMarkdown = `[${displayText}](${url})`;
+    const separator = selectedNote.content.length > 0 && !selectedNote.content.endsWith('\n') ? '\n' : '';
+    updateNote(selectedNote.id, { content: selectedNote.content + separator + linkMarkdown });
   };
 
   const handleInsertCode = (language: string, code: string) => {
     if (!selectedNote) return;
-    const codeMarkdown = `\n:::code{label="${language}"}\n${code}\n:::\n`;
-    updateNote(selectedNote.id, { content: selectedNote.content + codeMarkdown });
+    const codeMarkdown = `:::code{label="${language}"}\n${code}\n:::`;
+
+    if (activeEditorRef.current && lastSelectionRange.current) {
+        const range = lastSelectionRange.current;
+        const marker = document.createTextNode('$$CODE_BLOCK_MARKER$$');
+        range.insertNode(marker);
+        const md = domToMd(activeEditorRef.current);
+
+        const segmentId = segments.find(s => s.type === 'text' && activeEditorRef.current?.contains(activeEditorRef.current))?.id || segments.find(s => s.type === 'text')?.id;
+        if (segmentId) {
+            const updatedSegmentContent = md.replace('$$CODE_BLOCK_MARKER$$', `\n${codeMarkdown}\n`);
+            handleUpdateSegment(segmentId, updatedSegmentContent);
+            return;
+        }
+    }
+
+    const separator = selectedNote.content.length > 0 && !selectedNote.content.endsWith('\n') ? '\n' : '';
+    updateNote(selectedNote.id, { content: selectedNote.content + separator + codeMarkdown + '\n' });
   };
 
   return (
@@ -214,14 +425,40 @@ export function NoteEditor() {
               privacyMode && "opacity-0"
             )}
           />
-          <div className={cn("flex-1 overflow-y-auto pb-8", privacyMode && "opacity-0")}>
-            <textarea
-              placeholder="Start writing..."
-              value={selectedNote.content}
-              disabled={privacyMode}
-              onChange={(e) => updateNote(selectedNote.id, { content: e.target.value })}
-              className="min-h-full w-full resize-none bg-transparent text-lg leading-relaxed outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800"
-            />
+          <div className={cn("flex-1 overflow-y-auto pb-8 space-y-4", privacyMode && "opacity-0")}>
+            {segments.map((segment) => {
+                if (segment.type === 'text') {
+                    return (
+                        <RichTextEditor
+                            key={segment.id}
+                            value={segment.content}
+                            onChange={(val) => handleUpdateSegment(segment.id, val)}
+                            onFocus={(el) => {
+                                activeEditorRef.current = el;
+                            }}
+                            onBlur={(el) => {
+                                activeEditorRef.current = el;
+                                const selection = window.getSelection();
+                                if (selection && selection.rangeCount > 0 && el.contains(selection.anchorNode)) {
+                                    lastSelectionRange.current = selection.getRangeAt(0).cloneRange();
+                                }
+                            }}
+                            placeholder={segments.length === 1 ? "Start writing..." : ""}
+                            disabled={privacyMode}
+                        />
+                    );
+                } else if (segment.type === 'code') {
+                    return (
+                        <CollapsibleCodeBlock
+                            key={segment.id}
+                            language={segment.metadata?.language || ''}
+                            code={segment.metadata?.code || ''}
+                            onDelete={() => handleRemoveSegment(segment.id)}
+                        />
+                    );
+                }
+                return null;
+            })}
           </div>
         </div>
       </div>
