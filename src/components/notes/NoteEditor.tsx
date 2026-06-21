@@ -88,9 +88,10 @@ export function NoteEditor() {
   };
 
   return (
-    <div className="flex h-full flex-col p-8 lg:p-12 relative overflow-hidden">
-      <div className="mb-8 flex items-center justify-between">
-        <div className="flex items-center gap-1">
+    <div className="flex h-full flex-col relative overflow-hidden bg-white dark:bg-gray-950">
+      <div className="flex-1 flex flex-col p-8 lg:p-12 pb-0 lg:pb-0 overflow-hidden">
+        <div className="mb-8 flex items-center justify-between shrink-0">
+          <div className="flex items-center gap-1">
           {!selectedNote.isTrashed && (
             <>
               <Button
@@ -144,48 +145,48 @@ export function NoteEditor() {
           )}
         </div>
 
-        <div className="flex items-center gap-2">
-          {!selectedNote.isTrashed && (
-            <>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowLinkModal(true)}
-                className="text-gray-400 hover:text-blue-600"
-                title="Insert Link"
-              >
-                <LinkIcon className="h-4 w-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={() => setShowCodeModal(true)}
-                className="text-gray-400 hover:text-purple-600"
-                title="Insert Code Block"
-              >
-                <Code className="h-4 w-4" />
-              </Button>
-            </>
-          )}
+          <div className="flex items-center gap-2">
+            {!selectedNote.isTrashed && (
+              <>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowLinkModal(true)}
+                  className="text-gray-400 hover:text-blue-600"
+                  title="Insert Link"
+                >
+                  <LinkIcon className="h-4 w-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setShowCodeModal(true)}
+                  className="text-gray-400 hover:text-purple-600"
+                  title="Insert Code Block"
+                >
+                  <Code className="h-4 w-4" />
+                </Button>
+              </>
+            )}
 
-          {selectedNote.isTrashed ? (
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={() => setShowDeleteConfirm(true)}
-              className="text-red-600 font-bold hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
-              title="Delete Permanently"
-            >
-              <Trash2 className="h-4 w-4 lg:mr-2" />
-              <span className="hidden lg:inline">Delete Permanently</span>
-            </Button>
-          ) : null}
+            {selectedNote.isTrashed ? (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowDeleteConfirm(true)}
+                className="text-red-600 font-bold hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-950/30"
+                title="Delete Permanently"
+              >
+                <Trash2 className="h-4 w-4 lg:mr-2" />
+                <span className="hidden lg:inline">Delete Permanently</span>
+              </Button>
+            ) : null}
+          </div>
         </div>
-      </div>
 
-      <div className="relative flex-1 flex flex-col">
-        {privacyMode && (
-          <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white dark:bg-gray-950">
+        <div className="relative flex-1 flex flex-col min-h-0">
+          {privacyMode && (
+            <div className="absolute inset-0 z-10 flex flex-col items-center justify-center bg-white dark:bg-gray-950">
             <div className="flex flex-col items-center gap-4 text-center">
               <div className="rounded-full bg-gray-50 p-6 dark:bg-gray-900">
                 <EyeOff className="h-12 w-12 text-gray-300" />
@@ -201,57 +202,59 @@ export function NoteEditor() {
           </div>
         )}
 
-        <input
-          ref={titleInputRef}
-          type="text"
-          placeholder="Untitled Note"
-          value={selectedNote.title}
-          disabled={privacyMode}
-          onChange={(e) => updateNote(selectedNote.id, { title: e.target.value })}
-          className={cn(
-            "mb-6 w-full bg-transparent text-4xl font-bold tracking-tight outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800 transition-opacity",
-            privacyMode && "opacity-0"
-          )}
-        />
-        <div className={cn("flex-1 overflow-y-auto", privacyMode && "opacity-0")}>
-          <textarea
-            placeholder="Start writing..."
-            value={selectedNote.content}
+          <input
+            ref={titleInputRef}
+            type="text"
+            placeholder="Untitled Note"
+            value={selectedNote.title}
             disabled={privacyMode}
-            onChange={(e) => updateNote(selectedNote.id, { content: e.target.value })}
-            className="min-h-full w-full resize-none bg-transparent text-lg leading-relaxed outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800"
+            onChange={(e) => updateNote(selectedNote.id, { title: e.target.value })}
+            className={cn(
+              "mb-6 w-full bg-transparent text-4xl font-bold tracking-tight outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800 transition-opacity shrink-0",
+              privacyMode && "opacity-0"
+            )}
           />
+          <div className={cn("flex-1 overflow-y-auto pb-8", privacyMode && "opacity-0")}>
+            <textarea
+              placeholder="Start writing..."
+              value={selectedNote.content}
+              disabled={privacyMode}
+              onChange={(e) => updateNote(selectedNote.id, { content: e.target.value })}
+              className="min-h-full w-full resize-none bg-transparent text-lg leading-relaxed outline-none placeholder:text-gray-200 dark:placeholder:text-gray-800"
+            />
+          </div>
         </div>
       </div>
 
-      <div className="mt-auto mt-12 flex flex-wrap items-center justify-between gap-4 border-t border-gray-100 pt-6 text-[10px] font-medium uppercase tracking-widest text-gray-400 dark:border-gray-900">
-        <div className="flex items-center gap-6">
+      <div className="flex h-12 shrink-0 items-center justify-between border-t border-gray-100 bg-white px-8 text-[11px] font-medium text-gray-500 lg:px-12 dark:border-gray-900 dark:bg-gray-950 dark:text-gray-400">
+        <div className="flex items-center gap-4 lg:gap-6 whitespace-nowrap overflow-x-auto no-scrollbar">
           <div className="flex items-center gap-1.5">
             <span className="text-gray-900 dark:text-gray-100">
               {selectedNote.content.trim() ? selectedNote.content.trim().split(/\s+/).length : 0}
             </span>
             Words
           </div>
+          <span className="text-gray-300 dark:text-gray-700">•</span>
           <div className="flex items-center gap-1.5">
             <span className="text-gray-900 dark:text-gray-100">
               {selectedNote.content.length}
             </span>
             Characters
           </div>
+          <span className="text-gray-300 dark:text-gray-700">•</span>
           <div className="flex items-center gap-1.5">
-            <Clock className="h-3 w-3" />
+            <Clock className="h-3.5 w-3.5 text-gray-400" />
             <span>
-              {Math.max(1, Math.ceil(selectedNote.content.trim().split(/\s+/).length / 200))} min read
+              {Math.max(1, Math.ceil(selectedNote.content.trim().split(/\s+/).length / 200))} Min Read
             </span>
           </div>
         </div>
 
-        <div className="flex items-center gap-2">
-          <CheckCircle2 className="h-3 w-3 text-green-500" />
-          <span>Last saved {new Intl.DateTimeFormat('en-US', {
+        <div className="flex items-center gap-2 whitespace-nowrap ml-4">
+          <CheckCircle2 className="h-3.5 w-3.5 text-emerald-500" />
+          <span>Last Saved {new Intl.DateTimeFormat('en-US', {
             hour: 'numeric',
             minute: 'numeric',
-            second: 'numeric',
             hour12: true,
           }).format(selectedNote.updatedAt)}</span>
         </div>
