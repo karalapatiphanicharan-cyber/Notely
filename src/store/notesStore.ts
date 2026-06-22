@@ -196,13 +196,23 @@ export const useNotesStore = create<NotesState>((set, get) => ({
   },
 
   deleteNote: async (id) => {
-    const { notes } = get();
+    const { notes, selectedNoteId } = get();
     const note = notes.find(n => n.id === id);
     if (!note) return;
 
     if (note.isTrashed) {
       await get().permanentlyDeleteNote(id);
     } else {
+      // Find another note to select before trashing
+      if (selectedNoteId === id) {
+        // Find notes that are NOT trashed and NOT the one being deleted
+        const remainingNotes = notes.filter(n => !n.isTrashed && n.id !== id);
+        if (remainingNotes.length > 0) {
+          get().selectNote(remainingNotes[0].id);
+        } else {
+          get().selectNote(null);
+        }
+      }
       await get().updateNote(id, { isTrashed: true, isPinned: false });
     }
   },

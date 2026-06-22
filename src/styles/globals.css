@@ -39,3 +39,10 @@
     transition-duration: 200ms !important;
   }
 }
+
+/* Editor styles to fix vertical spacing */
+.notely-editor div,
+.notely-editor p {
+  margin: 0;
+  padding: 0;
+}
