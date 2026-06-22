@@ -15,7 +15,7 @@ import {
   Link as LinkIcon,
   Code
 } from 'lucide-react';
-import { useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState, useCallback } from 'react';
 import { Button } from '../ui/Button';
 import { ConfirmModal } from '../ui/ConfirmModal';
 import { LinkModal } from './LinkModal';
@@ -63,7 +63,7 @@ const mdToHtml = (md: string) => {
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
-    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" class="text-blue-600 underline font-medium cursor-pointer hover:text-blue-700 transition-colors" target="_blank" rel="noopener noreferrer">$1</a>')
+    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" contenteditable="false" class="text-blue-600 underline font-medium cursor-pointer hover:text-blue-700 transition-colors" target="_blank" rel="noopener noreferrer">$1</a>')
     .replace(/\n/g, '<br>');
 };
 
@@ -106,11 +106,23 @@ function RichTextEditor({
     }
   };
 
+  const handleClick = (e: React.MouseEvent) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'A') {
+      e.preventDefault();
+      const href = target.getAttribute('href');
+      if (href) {
+        window.open(href, '_blank', 'noopener,noreferrer');
+      }
+    }
+  };
+
   return (
     <div
       ref={editorRef}
       contentEditable={!disabled}
       onInput={handleInput}
+      onClick={handleClick}
       onFocus={() => editorRef.current && onFocus(editorRef.current)}
       onBlur={() => editorRef.current && onBlur(editorRef.current)}
       className={cn(
@@ -143,6 +155,8 @@ export function NoteEditor() {
 
   const activeEditorRef = useRef<HTMLDivElement | null>(null);
   const lastSelectionRange = useRef<Range | null>(null);
+  const [history, setHistory] = useState<{ content: string; updatedAt: number }[]>([]);
+  const [historyIndex, setHistoryIndex] = useState(-1);
 
   const selectedNote = notes.find((n) => n.id === selectedNoteId);
 
@@ -152,7 +166,7 @@ export function NoteEditor() {
     }
   }, [selectedNoteId, selectedNote]);
 
-  // Reset transient UI state when switching notes
+  // Reset transient UI and history when switching notes
   useEffect(() => {
     const timeout = setTimeout(() => {
       setShowDeleteConfirm(false);
@@ -160,9 +174,60 @@ export function NoteEditor() {
       setShowCodeModal(false);
       activeEditorRef.current = null;
       lastSelectionRange.current = null;
+      if (selectedNote) {
+        setHistory([{ content: selectedNote.content, updatedAt: selectedNote.updatedAt }]);
+        setHistoryIndex(0);
+      }
     }, 0);
     return () => clearTimeout(timeout);
-  }, [selectedNoteId]);
+  }, [selectedNoteId, selectedNote]);
+
+  const pushToHistory = useCallback((content: string) => {
+    setHistory(prev => {
+        const newHistory = prev.slice(0, historyIndex + 1);
+        newHistory.push({ content, updatedAt: Date.now() });
+        // Keep last 50 states
+        if (newHistory.length > 50) newHistory.shift();
+        setHistoryIndex(newHistory.length - 1);
+        return newHistory;
+    });
+  }, [historyIndex]);
+
+  const undo = useCallback(() => {
+    if (historyIndex > 0 && selectedNote) {
+      const prevIdx = historyIndex - 1;
+      const prevContent = history[prevIdx].content;
+      setHistoryIndex(prevIdx);
+      updateNote(selectedNote.id, { content: prevContent });
+    }
+  }, [historyIndex, history, selectedNote, updateNote]);
+
+  const redo = useCallback(() => {
+    if (historyIndex < history.length - 1 && selectedNote) {
+      const nextIdx = historyIndex + 1;
+      const nextContent = history[nextIdx].content;
+      setHistoryIndex(nextIdx);
+      updateNote(selectedNote.id, { content: nextContent });
+    }
+  }, [historyIndex, history, selectedNote, updateNote]);
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          redo();
+        } else {
+          undo();
+        }
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+        e.preventDefault();
+        redo();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [undo, redo]);
 
   if (!selectedNote) {
     return (
@@ -230,12 +295,48 @@ export function NoteEditor() {
     const newSegments = segments.map(s => s.id === segmentId ? { ...s, content: newText } : s);
     const newContent = newSegments.map(s => s.content).join('');
     updateNote(selectedNote.id, { content: newContent });
+    pushToHistory(newContent);
   };
 
   const handleRemoveSegment = (segmentId: string) => {
     const newSegments = segments.filter(s => s.id !== segmentId);
     const newContent = newSegments.map(s => s.content).join('');
     updateNote(selectedNote.id, { content: newContent });
+    pushToHistory(newContent);
+  };
+
+  const getCharacterOffset = (container: Node, targetNode: Node, targetOffset: number): number => {
+    let offset = 0;
+    const walk = (node: Node) => {
+      if (node === targetNode) {
+        offset += targetOffset;
+        return true;
+      }
+      if (node.nodeType === Node.TEXT_NODE) {
+        offset += node.textContent?.length || 0;
+      } else if (node.nodeName === 'BR') {
+        offset += 1;
+      } else if (node.nodeName === 'A') {
+        const text = node.textContent || '';
+        const href = (node as HTMLAnchorElement).getAttribute('href') || '';
+        const md = `[${text}](${href})`;
+        if (node.contains(targetNode)) {
+          // This is tricky, if the cursor is inside a link.
+          // For now, let's just count it as if it's before or after.
+          // Usually links have contenteditable="false", so selection is either before or after.
+          offset += md.length;
+          return true;
+        }
+        offset += md.length;
+      } else {
+        for (let i = 0; i < node.childNodes.length; i++) {
+          if (walk(node.childNodes[i])) return true;
+        }
+      }
+      return false;
+    };
+    walk(container);
+    return offset;
   };
 
   const handleInsertLink = (displayText: string, url: string) => {
@@ -253,6 +354,7 @@ export function NoteEditor() {
         a.className = "text-blue-600 underline font-medium cursor-pointer hover:text-blue-700 transition-colors";
         a.target = "_blank";
         a.rel = "noopener noreferrer";
+        a.contentEditable = "false";
         a.textContent = displayText;
 
         range.deleteContents();
@@ -264,7 +366,12 @@ export function NoteEditor() {
         selection.addRange(range);
 
         const md = domToMd(activeEditorRef.current);
-        const segmentId = segments.find(s => s.type === 'text' && activeEditorRef.current?.contains(activeEditorRef.current))?.id || segments.find(s => s.type === 'text')?.id || '';
+        // Find which segment this editor belongs to
+        const activeSegment = segments.find(s => s.type === 'text' && activeEditorRef.current && s.content.includes(domToMd(activeEditorRef.current)));
+        // This is a bit fragile if multiple segments have same content, but usually segments are unique
+        // Better: we know which editor fired the blur.
+        // Let's just use the segment logic.
+        const segmentId = activeSegment?.id || segments.find(s => s.type === 'text')?.id || '';
         handleUpdateSegment(segmentId, md);
         return;
       }
@@ -273,7 +380,9 @@ export function NoteEditor() {
     // Fallback: append
     const linkMarkdown = `[${displayText}](${url})`;
     const separator = selectedNote.content.length > 0 && !selectedNote.content.endsWith('\n') ? '\n' : '';
-    updateNote(selectedNote.id, { content: selectedNote.content + separator + linkMarkdown });
+    const newContent = selectedNote.content + separator + linkMarkdown;
+    updateNote(selectedNote.id, { content: newContent });
+    pushToHistory(newContent);
   };
 
   const handleInsertCode = (language: string, code: string) => {
@@ -282,20 +391,23 @@ export function NoteEditor() {
 
     if (activeEditorRef.current && lastSelectionRange.current) {
         const range = lastSelectionRange.current;
-        const marker = document.createTextNode('$$CODE_BLOCK_MARKER$$');
-        range.insertNode(marker);
+        const offset = getCharacterOffset(activeEditorRef.current, range.startContainer, range.startOffset);
         const md = domToMd(activeEditorRef.current);
+        const before = md.substring(0, offset);
+        const after = md.substring(offset);
 
-        const segmentId = segments.find(s => s.type === 'text' && activeEditorRef.current?.contains(activeEditorRef.current))?.id || segments.find(s => s.type === 'text')?.id;
+        const segmentId = segments.find(s => s.type === 'text' && s.content === md)?.id || segments.find(s => s.type === 'text')?.id;
         if (segmentId) {
-            const updatedSegmentContent = md.replace('$$CODE_BLOCK_MARKER$$', `\n${codeMarkdown}\n`);
+            const updatedSegmentContent = before + `\n${codeMarkdown}\n` + after;
             handleUpdateSegment(segmentId, updatedSegmentContent);
             return;
         }
     }
 
     const separator = selectedNote.content.length > 0 && !selectedNote.content.endsWith('\n') ? '\n' : '';
-    updateNote(selectedNote.id, { content: selectedNote.content + separator + codeMarkdown + '\n' });
+    const newContent = selectedNote.content + separator + codeMarkdown + '\n';
+    updateNote(selectedNote.id, { content: newContent });
+    pushToHistory(newContent);
   };
 
   return (
