@@ -48,10 +48,12 @@ function getMdAndOffset(container: HTMLElement, rangeOverride?: Range | null): {
 
   function walk(node: Node) {
     if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent || '';
       if (range && node === range.startContainer) {
+        // Map the range offset (which might include nbsp) to our space-normalized md length
         offset = md.length + range.startOffset;
       }
-      md += node.textContent?.replace(/\u00A0/g, ' ') || '';
+      md += text.replace(/\u00A0/g, ' ');
     } else if (node.nodeName === 'BR') {
       if (range && (node === range.startContainer || (node.parentNode === range.startContainer && node === range.startContainer.childNodes[range.startOffset]))) {
         if (offset === -1) offset = md.length;
@@ -59,12 +61,32 @@ function getMdAndOffset(container: HTMLElement, rangeOverride?: Range | null): {
       md += '\n';
     } else if (node.nodeName === 'A') {
       const a = node as HTMLAnchorElement;
-      const linkMd = `[${a.textContent}](${a.getAttribute('href')})`;
-      if (range && (node === range.startContainer || node.contains(range.startContainer))) {
-        // Place caret after link if it's inside (links are contenteditable=false)
-        offset = md.length + linkMd.length;
+      const href = a.getAttribute('href') || '';
+      const text = a.textContent || '';
+      if (href === text) {
+        // Treat as plain URL for MD generation
+        if (range && (node === range.startContainer || node.contains(range.startContainer))) {
+          if (node === range.startContainer) {
+            offset = md.length + range.startOffset;
+          } else {
+            // Caret is likely inside the text node
+            const textNode = node.firstChild;
+            if (textNode && range.startContainer === textNode) {
+              offset = md.length + range.startOffset;
+            } else {
+              offset = md.length + text.length;
+            }
+          }
+        }
+        md += text;
+      } else {
+        const linkMd = `[${text}](${href})`;
+        if (range && (node === range.startContainer || node.contains(range.startContainer))) {
+          // Place caret after link if it's inside (links are contenteditable=false)
+          offset = md.length + linkMd.length;
+        }
+        md += linkMd;
       }
-      md += linkMd;
     } else if (node.nodeName === 'STRONG' || node.nodeName === 'B') {
       md += '**';
       node.childNodes.forEach(walk);
@@ -138,15 +160,29 @@ function applyCaretOffset(container: HTMLElement, targetOffset: number) {
       }
     } else if (node.nodeName === 'A') {
       const a = node as HTMLAnchorElement;
-      const linkMd = `[${a.textContent}](${a.getAttribute('href')})`;
-      const len = linkMd.length;
-      if (currentOffset + len >= targetOffset) {
-        range.setStartAfter(node);
-        range.collapse(true);
-        return true;
+      const href = a.getAttribute('href') || '';
+      const text = a.textContent || '';
+      if (href === text) {
+        const len = text.length;
+        if (currentOffset + len >= targetOffset) {
+          const textNode = node.firstChild || node;
+          range.setStart(textNode, Math.max(0, targetOffset - currentOffset));
+          range.collapse(true);
+          return true;
+        }
+        currentOffset += len;
+        mdForTracking += text;
+      } else {
+        const linkMd = `[${text}](${href})`;
+        const len = linkMd.length;
+        if (currentOffset + len >= targetOffset) {
+          range.setStartAfter(node);
+          range.collapse(true);
+          return true;
+        }
+        currentOffset += len;
+        mdForTracking += linkMd;
       }
-      currentOffset += len;
-      mdForTracking += linkMd;
     } else if (node.nodeName === 'STRONG' || node.nodeName === 'B') {
       currentOffset += 2;
       mdForTracking += '**';
@@ -222,14 +258,26 @@ function applyCaretOffset(container: HTMLElement, targetOffset: number) {
 
 const mdToHtml = (md: string) => {
   if (!md) return '';
-  return md
+
+  // First, handle markdown links and existing HTML tags
+  let html = md
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
     .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
     .replace(/\*(.*?)\*/g, '<em>$1</em>')
-    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" contenteditable="false" class="text-blue-600 underline font-medium cursor-pointer hover:text-blue-700 transition-colors" target="_blank" rel="noopener noreferrer">$1</a>')
-    .replace(/\n/g, '<br>');
+    .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" contenteditable="false" class="text-blue-600 underline font-medium cursor-pointer hover:text-blue-700 transition-colors" target="_blank" rel="noopener noreferrer">$1</a>');
+
+  // Automatically convert plain URLs to clickable links, but avoid URLs already inside <a> tags or code blocks
+  // This regex matches http/https URLs that contain at least one dot.
+  const urlRegex = /(?<!["'>])(https?:\/\/[^\s<.]+\.[^\s<]+)(?![^<]*<\/a>)/g;
+  html = html.replace(urlRegex, (url) => {
+    return `<a href="${url}" contenteditable="false" class="text-blue-600 underline font-medium cursor-pointer hover:text-blue-700 transition-colors" target="_blank" rel="noopener noreferrer">${url}</a>`;
+  });
+
+  return html
+    .replace(/\n/g, '<br>')
+    .replace(/ {2}/g, ' &nbsp;'); // Preserve consecutive spaces
 };
 
 function RichTextEditor({
@@ -273,7 +321,8 @@ function RichTextEditor({
   const handleInput = () => {
     if (editorRef.current) {
       const { md, offset } = getMdAndOffset(editorRef.current);
-      lastValueRef.current = md;
+      // We don't update lastValueRef here to allow the useEffect to re-render
+      // and apply transformations like automatic URL linking.
       onChange(md, offset);
     }
   };
@@ -296,6 +345,12 @@ function RichTextEditor({
       onClick={handleClick}
       onFocus={() => editorRef.current && onFocus(editorRef.current)}
       onBlur={() => editorRef.current && onBlur(editorRef.current)}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          // Let the browser handle Enter, but ensure we capture the state immediately after
+          setTimeout(handleInput, 0);
+        }
+      }}
       className={cn(
         "notely-editor w-full min-h-[1.5em] text-lg leading-relaxed outline-none transition-all",
         !value && "before:content-[attr(data-placeholder)] before:text-gray-200 dark:before:text-gray-800 before:pointer-events-none"
@@ -360,7 +415,10 @@ export function NoteEditor() {
 
   const pushToHistory = useCallback((content: string, caretOffset: number = 0) => {
     const now = Date.now();
-    if (now - lastHistoryPushRef.current < 1000 && historyIndex >= 0) {
+
+    // If it's very soon after the last push, we update the current state instead of adding a new one.
+    // BUT we never overwrite the initial state (index 0) if we just loaded the note.
+    if (now - lastHistoryPushRef.current < 1000 && historyIndex > 0) {
       setHistory(prev => {
         const newHistory = [...prev];
         newHistory[historyIndex] = { content, caretOffset, updatedAt: now };
@@ -372,9 +430,17 @@ export function NoteEditor() {
 
     setHistory(prev => {
         const newHistory = prev.slice(0, historyIndex + 1);
+        // Only push if content actually changed from the last history state
+        if (newHistory.length > 0 && newHistory[newHistory.length - 1].content === content) {
+          return prev;
+        }
         newHistory.push({ content, caretOffset, updatedAt: now });
-        if (newHistory.length > 50) newHistory.shift();
-        setHistoryIndex(newHistory.length - 1);
+        if (newHistory.length > 50) {
+          newHistory.shift();
+          setHistoryIndex(Math.max(0, newHistory.length - 1));
+        } else {
+          setHistoryIndex(newHistory.length - 1);
+        }
         return newHistory;
     });
     lastHistoryPushRef.current = now;

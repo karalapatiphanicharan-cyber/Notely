@@ -29,7 +29,6 @@ interface NotesState {
   addAttachment: (noteId: string, file: File) => Promise<void>;
   removeAttachment: (attachmentId: string) => Promise<void>;
   loadAttachments: (noteId: string) => Promise<void>;
-  emptyTrash: () => Promise<void>;
 }
 
 const WELCOME_NOTE: Note = {
@@ -244,38 +243,6 @@ export const useNotesStore = create<NotesState>((set, get) => ({
       }));
     } catch (error) {
       console.error('Failed to permanently delete note:', error);
-    }
-  },
-
-  emptyTrash: async () => {
-    const { notes, selectedNoteId } = get();
-    const trashedNotes = notes.filter(n => n.isTrashed);
-
-    if (trashedNotes.length === 0) return;
-
-    try {
-      await Promise.all(trashedNotes.map(note => {
-        const timeout = updateTimeouts.get(note.id);
-        if (timeout) {
-          clearTimeout(timeout);
-          updateTimeouts.delete(note.id);
-        }
-        return Promise.all([
-          notesRepository.deleteNote(note.id),
-          attachmentsRepository.deleteAttachmentsByNote(note.id)
-        ]);
-      }));
-
-      const trashedIds = new Set(trashedNotes.map(n => n.id));
-      const isSelectedTrashed = selectedNoteId ? trashedIds.has(selectedNoteId) : false;
-
-      set((state) => ({
-        notes: state.notes.filter(n => !n.isTrashed),
-        selectedNoteId: isSelectedTrashed ? null : state.selectedNoteId,
-        selectedNoteAttachments: isSelectedTrashed ? [] : state.selectedNoteAttachments
-      }));
-    } catch (error) {
-      console.error('Failed to empty trash:', error);
     }
   },
 
