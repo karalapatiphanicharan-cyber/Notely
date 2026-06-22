@@ -1,16 +1,58 @@
-import { Plus, Search, ChevronLeft, ChevronRight, FileText, Eye, EyeOff } from 'lucide-react';
+import { Plus, Search, ChevronLeft, ChevronRight, FileText, Eye, EyeOff, Star, Archive, Trash2 } from 'lucide-react';
 import { useNotesStore } from '../../store/notesStore';
 import { NoteCard } from './NoteCard';
 import { Button } from '../ui/Button';
 import { useLocation } from 'react-router-dom';
 import { useUIStore } from '../../store/uiStore';
+import { useState } from 'react';
+import { ConfirmModal } from '../ui/ConfirmModal';
 
 export function NotesList() {
-  const { selectedNoteId, selectNote, createNote, searchQuery, setSearchQuery, getFilteredNotes } = useNotesStore();
+  const { selectedNoteId, selectNote, createNote, searchQuery, setSearchQuery, getFilteredNotes, emptyTrash } = useNotesStore();
   const { isNotesListCollapsed, toggleNotesListCollapse, privacyMode, togglePrivacyMode } = useUIStore();
+  const [showEmptyTrashConfirm, setShowEmptyTrashConfirm] = useState(false);
   const location = useLocation();
 
   const filteredNotes = getFilteredNotes(location.pathname);
+
+  const getEmptyStateContent = () => {
+    if (searchQuery.trim()) {
+      return {
+        title: "No matching notes found",
+        description: "Try a different keyword or clear your search.",
+        icon: null
+      };
+    }
+
+    switch (location.pathname) {
+      case '/favorites':
+        return {
+          title: "No favorite notes yet",
+          description: "Star important notes to quickly access them here.",
+          icon: <Star className="h-8 w-8 mb-2" />
+        };
+      case '/archive':
+        return {
+          title: "Archive is empty",
+          description: "Archived notes will appear here until you restore them.",
+          icon: <Archive className="h-8 w-8 mb-2" />
+        };
+      case '/trash':
+        return {
+          title: "Trash is empty",
+          description: "Deleted notes will appear here before being permanently removed.",
+          icon: <Trash2 className="h-8 w-8 mb-2" />
+        };
+      default:
+        return {
+          title: "No notes yet",
+          description: "Create your first note to begin.",
+          icon: null
+        };
+    }
+  };
+
+  const emptyState = getEmptyStateContent();
 
   if (isNotesListCollapsed) {
     return (
@@ -57,6 +99,17 @@ export function NotesList() {
             >
               {privacyMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
             </Button>
+            {location.pathname === '/trash' && filteredNotes.length > 0 && (
+              <Button
+                variant="ghost"
+                size="icon"
+                className="h-8 w-8 text-red-500 hover:text-red-600 hover:bg-red-50 dark:hover:bg-red-950/20"
+                onClick={() => setShowEmptyTrashConfirm(true)}
+                title="Empty Trash"
+              >
+                <Trash2 className="h-4 w-4" />
+              </Button>
+            )}
             {location.pathname !== '/trash' && (
               <Button variant="ghost" size="icon" className="h-8 w-8" onClick={createNote} title="Create Note">
                 <Plus className="h-4 w-4" />
@@ -79,14 +132,13 @@ export function NotesList() {
 
       <div className="flex-1 overflow-y-auto px-2 pb-4 space-y-1">
         {filteredNotes.length === 0 ? (
-          <div className="mt-12 text-center px-6">
+          <div className="mt-12 text-center px-6 flex flex-col items-center">
+            {emptyState.icon && <div className="text-gray-300 dark:text-gray-700">{emptyState.icon}</div>}
             <h3 className="text-sm font-medium text-gray-900 dark:text-gray-100">
-              {searchQuery.trim() ? "No matching notes found" : "No notes yet"}
+              {emptyState.title}
             </h3>
             <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
-              {searchQuery.trim()
-                ? "Try a different keyword or clear your search."
-                : "Create your first note to begin."}
+              {emptyState.description}
             </p>
           </div>
         ) : (
@@ -100,6 +152,18 @@ export function NotesList() {
           ))
         )}
       </div>
+
+      <ConfirmModal
+        isOpen={showEmptyTrashConfirm}
+        title="Delete all notes from Trash?"
+        message="This action will permanently remove every note currently in Trash and cannot be undone."
+        confirmLabel="Delete All"
+        onConfirm={async () => {
+          await emptyTrash();
+          setShowEmptyTrashConfirm(false);
+        }}
+        onCancel={() => setShowEmptyTrashConfirm(false)}
+      />
     </div>
   );
 }
