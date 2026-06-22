@@ -48,7 +48,9 @@ const domToMd = (node: Node): string => {
       result += '\n';
     } else if (child.nodeName === 'DIV' || child.nodeName === 'P') {
       const content = domToMd(child);
-      if (content) result += '\n' + content + '\n';
+      if (result && !result.endsWith('\n')) result += '\n';
+      result += content;
+      if (!result.endsWith('\n')) result += '\n';
     } else {
       result += domToMd(child);
     }
@@ -107,9 +109,8 @@ function RichTextEditor({
   };
 
   const handleClick = (e: React.MouseEvent) => {
-    const target = e.target as HTMLElement;
-    if (target.tagName === 'A') {
-      e.preventDefault();
+    const target = (e.target as HTMLElement).closest('a');
+    if (target) {
       const href = target.getAttribute('href');
       if (href) {
         window.open(href, '_blank', 'noopener,noreferrer');
@@ -126,7 +127,7 @@ function RichTextEditor({
       onFocus={() => editorRef.current && onFocus(editorRef.current)}
       onBlur={() => editorRef.current && onBlur(editorRef.current)}
       className={cn(
-        "w-full min-h-[1.5em] text-lg leading-relaxed outline-none transition-all",
+        "notely-editor w-full min-h-[1.5em] text-lg leading-relaxed outline-none transition-all",
         !value && "before:content-[attr(data-placeholder)] before:text-gray-200 dark:before:text-gray-800 before:pointer-events-none"
       )}
       data-placeholder={placeholder}
@@ -447,7 +448,7 @@ export function NoteEditor() {
               <Button
                 variant="ghost"
                 size="icon"
-                onClick={() => setShowDeleteConfirm(true)}
+                onClick={() => deleteNote(selectedNote.id)}
                 className="text-red-600 hover:text-red-700"
                 title="Move to trash"
               >
