@@ -85,25 +85,22 @@ function RichTextEditor({
   disabled?: boolean;
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
-  const [isInternalUpdate, setIsInternalUpdate] = useState(false);
+  const lastValueRef = useRef(value);
 
   useEffect(() => {
-    if (editorRef.current && !isInternalUpdate) {
+    if (editorRef.current && value !== lastValueRef.current) {
       const html = mdToHtml(value);
       if (editorRef.current.innerHTML !== html) {
         editorRef.current.innerHTML = html;
       }
+      lastValueRef.current = value;
     }
-    const timeout = setTimeout(() => {
-      setIsInternalUpdate(false);
-    }, 0);
-    return () => clearTimeout(timeout);
-  }, [value, isInternalUpdate]);
+  }, [value]);
 
   const handleInput = () => {
     if (editorRef.current) {
       const md = domToMd(editorRef.current);
-      setIsInternalUpdate(true);
+      lastValueRef.current = md;
       onChange(md);
     }
   };
