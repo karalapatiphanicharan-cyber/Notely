@@ -35,36 +35,199 @@ interface Segment {
 
 const CODE_REGEX = /:::code\{label="(.*?)"\}\n([\s\S]*?)\n:::/g;
 
-// Helper to convert DOM to Markdown
-const domToMd = (node: Node): string => {
-  let result = '';
-  node.childNodes.forEach(child => {
-    if (child.nodeType === Node.TEXT_NODE) {
-      result += child.textContent;
-    } else if (child.nodeName === 'A') {
-      const a = child as HTMLAnchorElement;
-      result += `[${a.textContent}](${a.getAttribute('href')})`;
-    } else if (child.nodeName === 'BR') {
-      result += '\n';
-    } else if (child.nodeName === 'DIV' || child.nodeName === 'P') {
-      const content = domToMd(child);
-      if (result && !result.endsWith('\n')) result += '\n';
-      result += content;
-      if (!result.endsWith('\n')) result += '\n';
-    } else {
-      result += domToMd(child);
-    }
-  });
-  return result;
-};
+/**
+ * Unifies Markdown generation and caret offset calculation.
+ * This ensures that the offset always corresponds correctly to the generated Markdown.
+ */
+function getMdAndOffset(container: HTMLElement, rangeOverride?: Range | null): { md: string; offset: number } {
+  const selection = window.getSelection();
+  const range = rangeOverride !== undefined ? rangeOverride : (selection && selection.rangeCount > 0 ? selection.getRangeAt(0) : null);
 
-// Helper to convert Markdown (with links) to HTML
+  let md = '';
+  let offset = -1;
+
+  function walk(node: Node) {
+    if (node.nodeType === Node.TEXT_NODE) {
+      if (range && node === range.startContainer) {
+        offset = md.length + range.startOffset;
+      }
+      md += node.textContent?.replace(/\u00A0/g, ' ') || '';
+    } else if (node.nodeName === 'BR') {
+      if (range && (node === range.startContainer || (node.parentNode === range.startContainer && node === range.startContainer.childNodes[range.startOffset]))) {
+        if (offset === -1) offset = md.length;
+      }
+      md += '\n';
+    } else if (node.nodeName === 'A') {
+      const a = node as HTMLAnchorElement;
+      const linkMd = `[${a.textContent}](${a.getAttribute('href')})`;
+      if (range && (node === range.startContainer || node.contains(range.startContainer))) {
+        // Place caret after link if it's inside (links are contenteditable=false)
+        offset = md.length + linkMd.length;
+      }
+      md += linkMd;
+    } else if (node.nodeName === 'STRONG' || node.nodeName === 'B') {
+      md += '**';
+      node.childNodes.forEach(walk);
+      md += '**';
+    } else if (node.nodeName === 'EM' || node.nodeName === 'I') {
+      md += '*';
+      node.childNodes.forEach(walk);
+      md += '*';
+    } else if (node.nodeName === 'DIV' || node.nodeName === 'P') {
+      const needsLeadingNewline = md.length > 0 && !md.endsWith('\n');
+      if (needsLeadingNewline) md += '\n';
+
+      node.childNodes.forEach((child, i) => {
+        if (range && node === range.startContainer && i === range.startOffset) {
+          offset = md.length;
+        }
+        walk(child);
+      });
+      if (range && node === range.startContainer && node.childNodes.length === range.startOffset) {
+        offset = md.length;
+      }
+
+      if (!md.endsWith('\n')) md += '\n';
+    } else {
+      // Default container
+      node.childNodes.forEach((child, i) => {
+        if (range && node === range.startContainer && i === range.startOffset) {
+          offset = md.length;
+        }
+        walk(child);
+      });
+      if (range && node === range.startContainer && node.childNodes.length === range.startOffset) {
+        offset = md.length;
+      }
+    }
+  }
+
+  walk(container);
+  return { md, offset: offset === -1 ? md.length : offset };
+}
+
+function applyCaretOffset(container: HTMLElement, targetOffset: number) {
+  let currentOffset = 0;
+  let mdForTracking = '';
+  const range = document.createRange();
+  const selection = window.getSelection();
+
+  function walk(node: Node): boolean {
+    if (node.nodeType === Node.TEXT_NODE) {
+      const text = node.textContent?.replace(/\u00A0/g, ' ') || '';
+      const len = text.length;
+      if (currentOffset + len >= targetOffset) {
+        range.setStart(node, Math.max(0, targetOffset - currentOffset));
+        range.collapse(true);
+        return true;
+      }
+      currentOffset += len;
+      mdForTracking += text;
+    } else if (node.nodeName === 'BR') {
+      if (currentOffset === targetOffset) {
+        range.setStartBefore(node);
+        range.collapse(true);
+        return true;
+      }
+      currentOffset += 1;
+      mdForTracking += '\n';
+      if (currentOffset === targetOffset) {
+        range.setStartAfter(node);
+        range.collapse(true);
+        return true;
+      }
+    } else if (node.nodeName === 'A') {
+      const a = node as HTMLAnchorElement;
+      const linkMd = `[${a.textContent}](${a.getAttribute('href')})`;
+      const len = linkMd.length;
+      if (currentOffset + len >= targetOffset) {
+        range.setStartAfter(node);
+        range.collapse(true);
+        return true;
+      }
+      currentOffset += len;
+      mdForTracking += linkMd;
+    } else if (node.nodeName === 'STRONG' || node.nodeName === 'B') {
+      currentOffset += 2;
+      mdForTracking += '**';
+      for (const child of Array.from(node.childNodes)) {
+        if (walk(child)) return true;
+      }
+      currentOffset += 2;
+      mdForTracking += '**';
+    } else if (node.nodeName === 'EM' || node.nodeName === 'I') {
+      currentOffset += 1;
+      mdForTracking += '*';
+      for (const child of Array.from(node.childNodes)) {
+        if (walk(child)) return true;
+      }
+      currentOffset += 1;
+      mdForTracking += '*';
+    } else if (node.nodeName === 'DIV' || node.nodeName === 'P') {
+      if (mdForTracking.length > 0 && !mdForTracking.endsWith('\n')) {
+        currentOffset += 1;
+        mdForTracking += '\n';
+      }
+
+      const children = Array.from(node.childNodes);
+      for (let i = 0; i < children.length; i++) {
+        if (currentOffset === targetOffset) {
+          range.setStart(node, i);
+          range.collapse(true);
+          return true;
+        }
+        if (walk(children[i])) return true;
+      }
+
+      if (currentOffset === targetOffset) {
+        range.setStart(node, children.length);
+        range.collapse(true);
+        return true;
+      }
+
+      if (!mdForTracking.endsWith('\n')) {
+        currentOffset += 1;
+        mdForTracking += '\n';
+      }
+    } else {
+      const children = Array.from(node.childNodes);
+      for (let i = 0; i < children.length; i++) {
+        if (currentOffset === targetOffset) {
+          range.setStart(node, i);
+          range.collapse(true);
+          return true;
+        }
+        if (walk(children[i])) return true;
+      }
+      if (currentOffset === targetOffset) {
+        range.setStart(node, children.length);
+        range.collapse(true);
+        return true;
+      }
+    }
+    return false;
+  }
+
+  const found = walk(container);
+  if (!found) {
+    range.selectNodeContents(container);
+    range.collapse(false);
+  }
+
+  if (selection) {
+    selection.removeAllRanges();
+    selection.addRange(range);
+  }
+}
+
 const mdToHtml = (md: string) => {
   if (!md) return '';
   return md
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')
+    .replace(/\*\*(.*?)\*\*/g, '<strong>$1</strong>')
+    .replace(/\*(.*?)\*/g, '<em>$1</em>')
     .replace(/\[(.*?)\]\((.*?)\)/g, '<a href="$2" contenteditable="false" class="text-blue-600 underline font-medium cursor-pointer hover:text-blue-700 transition-colors" target="_blank" rel="noopener noreferrer">$1</a>')
     .replace(/\n/g, '<br>');
 };
@@ -75,36 +238,43 @@ function RichTextEditor({
   onFocus,
   onBlur,
   placeholder,
-  disabled
+  disabled,
+  forcedCaretOffset,
+  onCaretRestored
 }: {
   value: string;
-  onChange: (val: string) => void;
+  onChange: (val: string, caretOffset?: number) => void;
   onFocus: (el: HTMLDivElement) => void;
   onBlur: (el: HTMLDivElement) => void;
   placeholder?: string;
   disabled?: boolean;
+  forcedCaretOffset?: number | null;
+  onCaretRestored?: () => void;
 }) {
   const editorRef = useRef<HTMLDivElement>(null);
-  const [isInternalUpdate, setIsInternalUpdate] = useState(false);
+  const lastValueRef = useRef(value);
 
   useEffect(() => {
-    if (editorRef.current && !isInternalUpdate) {
-      const html = mdToHtml(value);
-      if (editorRef.current.innerHTML !== html) {
-        editorRef.current.innerHTML = html;
+    if (editorRef.current) {
+      if (forcedCaretOffset !== undefined && forcedCaretOffset !== null) {
+        editorRef.current.innerHTML = mdToHtml(value);
+        lastValueRef.current = value;
+        applyCaretOffset(editorRef.current, forcedCaretOffset);
+        onCaretRestored?.();
+      } else if (value !== lastValueRef.current) {
+        const { offset } = getMdAndOffset(editorRef.current);
+        editorRef.current.innerHTML = mdToHtml(value);
+        lastValueRef.current = value;
+        applyCaretOffset(editorRef.current, offset);
       }
     }
-    const timeout = setTimeout(() => {
-      setIsInternalUpdate(false);
-    }, 0);
-    return () => clearTimeout(timeout);
-  }, [value, isInternalUpdate]);
+  }, [value, forcedCaretOffset, onCaretRestored]);
 
   const handleInput = () => {
     if (editorRef.current) {
-      const md = domToMd(editorRef.current);
-      setIsInternalUpdate(true);
-      onChange(md);
+      const { md, offset } = getMdAndOffset(editorRef.current);
+      lastValueRef.current = md;
+      onChange(md, offset);
     }
   };
 
@@ -156,8 +326,10 @@ export function NoteEditor() {
 
   const activeEditorRef = useRef<HTMLDivElement | null>(null);
   const lastSelectionRange = useRef<Range | null>(null);
-  const [history, setHistory] = useState<{ content: string; updatedAt: number }[]>([]);
+  const [history, setHistory] = useState<{ content: string; caretOffset: number; updatedAt: number }[]>([]);
   const [historyIndex, setHistoryIndex] = useState(-1);
+  const lastHistoryPushRef = useRef<number>(0);
+  const [pendingCaretOffset, setPendingCaretOffset] = useState<number | null>(null);
 
   const selectedNote = notes.find((n) => n.id === selectedNoteId);
 
@@ -175,53 +347,72 @@ export function NoteEditor() {
       setShowCodeModal(false);
       activeEditorRef.current = null;
       lastSelectionRange.current = null;
-      if (selectedNote) {
-        setHistory([{ content: selectedNote.content, updatedAt: selectedNote.updatedAt }]);
+      setPendingCaretOffset(null);
+      const note = useNotesStore.getState().notes.find(n => n.id === selectedNoteId);
+      if (note) {
+        setHistory([{ content: note.content, caretOffset: 0, updatedAt: note.updatedAt }]);
         setHistoryIndex(0);
+        lastHistoryPushRef.current = Date.now();
       }
     }, 0);
     return () => clearTimeout(timeout);
-  }, [selectedNoteId, selectedNote]);
+  }, [selectedNoteId]);
 
-  const pushToHistory = useCallback((content: string) => {
+  const pushToHistory = useCallback((content: string, caretOffset: number = 0) => {
+    const now = Date.now();
+    if (now - lastHistoryPushRef.current < 1000 && historyIndex >= 0) {
+      setHistory(prev => {
+        const newHistory = [...prev];
+        newHistory[historyIndex] = { content, caretOffset, updatedAt: now };
+        return newHistory;
+      });
+      lastHistoryPushRef.current = now;
+      return;
+    }
+
     setHistory(prev => {
         const newHistory = prev.slice(0, historyIndex + 1);
-        newHistory.push({ content, updatedAt: Date.now() });
-        // Keep last 50 states
+        newHistory.push({ content, caretOffset, updatedAt: now });
         if (newHistory.length > 50) newHistory.shift();
         setHistoryIndex(newHistory.length - 1);
         return newHistory;
     });
+    lastHistoryPushRef.current = now;
   }, [historyIndex]);
 
   const undo = useCallback(() => {
     if (historyIndex > 0 && selectedNote) {
       const prevIdx = historyIndex - 1;
-      const prevContent = history[prevIdx].content;
+      const state = history[prevIdx];
       setHistoryIndex(prevIdx);
-      updateNote(selectedNote.id, { content: prevContent });
+      setPendingCaretOffset(state.caretOffset);
+      updateNote(selectedNote.id, { content: state.content });
     }
   }, [historyIndex, history, selectedNote, updateNote]);
 
   const redo = useCallback(() => {
     if (historyIndex < history.length - 1 && selectedNote) {
       const nextIdx = historyIndex + 1;
-      const nextContent = history[nextIdx].content;
+      const state = history[nextIdx];
       setHistoryIndex(nextIdx);
-      updateNote(selectedNote.id, { content: nextContent });
+      setPendingCaretOffset(state.caretOffset);
+      updateNote(selectedNote.id, { content: state.content });
     }
   }, [historyIndex, history, selectedNote, updateNote]);
 
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z') {
+      const key = e.key.toLowerCase();
+      const isCmdOrCtrl = e.ctrlKey || e.metaKey;
+
+      if (isCmdOrCtrl && key === 'z') {
         e.preventDefault();
         if (e.shiftKey) {
           redo();
         } else {
           undo();
         }
-      } else if ((e.ctrlKey || e.metaKey) && e.key === 'y') {
+      } else if (isCmdOrCtrl && key === 'y') {
         e.preventDefault();
         redo();
       }
@@ -248,7 +439,6 @@ export function NoteEditor() {
     const segments: Segment[] = [];
     const matches: { index: number; length: number; segment: Segment }[] = [];
 
-    // Find code blocks
     let codeMatch;
     const codeRegexClone = new RegExp(CODE_REGEX);
     while ((codeMatch = codeRegexClone.exec(content)) !== null) {
@@ -292,11 +482,11 @@ export function NoteEditor() {
 
   const segments = parseContent(selectedNote.content);
 
-  const handleUpdateSegment = (segmentId: string, newText: string) => {
+  const handleUpdateSegment = (segmentId: string, newText: string, caretOffset: number = 0) => {
     const newSegments = segments.map(s => s.id === segmentId ? { ...s, content: newText } : s);
     const newContent = newSegments.map(s => s.content).join('');
     updateNote(selectedNote.id, { content: newContent });
-    pushToHistory(newContent);
+    pushToHistory(newContent, caretOffset);
   };
 
   const handleRemoveSegment = (segmentId: string) => {
@@ -304,40 +494,6 @@ export function NoteEditor() {
     const newContent = newSegments.map(s => s.content).join('');
     updateNote(selectedNote.id, { content: newContent });
     pushToHistory(newContent);
-  };
-
-  const getCharacterOffset = (container: Node, targetNode: Node, targetOffset: number): number => {
-    let offset = 0;
-    const walk = (node: Node) => {
-      if (node === targetNode) {
-        offset += targetOffset;
-        return true;
-      }
-      if (node.nodeType === Node.TEXT_NODE) {
-        offset += node.textContent?.length || 0;
-      } else if (node.nodeName === 'BR') {
-        offset += 1;
-      } else if (node.nodeName === 'A') {
-        const text = node.textContent || '';
-        const href = (node as HTMLAnchorElement).getAttribute('href') || '';
-        const md = `[${text}](${href})`;
-        if (node.contains(targetNode)) {
-          // This is tricky, if the cursor is inside a link.
-          // For now, let's just count it as if it's before or after.
-          // Usually links have contenteditable="false", so selection is either before or after.
-          offset += md.length;
-          return true;
-        }
-        offset += md.length;
-      } else {
-        for (let i = 0; i < node.childNodes.length; i++) {
-          if (walk(node.childNodes[i])) return true;
-        }
-      }
-      return false;
-    };
-    walk(container);
-    return offset;
   };
 
   const handleInsertLink = (displayText: string, url: string) => {
@@ -366,19 +522,13 @@ export function NoteEditor() {
         selection.removeAllRanges();
         selection.addRange(range);
 
-        const md = domToMd(activeEditorRef.current);
-        // Find which segment this editor belongs to
-        const activeSegment = segments.find(s => s.type === 'text' && activeEditorRef.current && s.content.includes(domToMd(activeEditorRef.current)));
-        // This is a bit fragile if multiple segments have same content, but usually segments are unique
-        // Better: we know which editor fired the blur.
-        // Let's just use the segment logic.
-        const segmentId = activeSegment?.id || segments.find(s => s.type === 'text')?.id || '';
-        handleUpdateSegment(segmentId, md);
+        const { md, offset } = getMdAndOffset(activeEditorRef.current);
+        const segmentId = segments.find(s => s.type === 'text' && activeEditorRef.current && activeEditorRef.current.parentElement?.contains(activeEditorRef.current))?.id || segments.find(s => s.type === 'text')?.id || '';
+        handleUpdateSegment(segmentId, md, offset);
         return;
       }
     }
 
-    // Fallback: append
     const linkMarkdown = `[${displayText}](${url})`;
     const separator = selectedNote.content.length > 0 && !selectedNote.content.endsWith('\n') ? '\n' : '';
     const newContent = selectedNote.content + separator + linkMarkdown;
@@ -391,9 +541,7 @@ export function NoteEditor() {
     const codeMarkdown = `:::code{label="${language}"}\n${code}\n:::`;
 
     if (activeEditorRef.current && lastSelectionRange.current) {
-        const range = lastSelectionRange.current;
-        const offset = getCharacterOffset(activeEditorRef.current, range.startContainer, range.startOffset);
-        const md = domToMd(activeEditorRef.current);
+        const { md, offset } = getMdAndOffset(activeEditorRef.current, lastSelectionRange.current);
         const before = md.substring(0, offset);
         const after = md.substring(offset);
 
@@ -545,7 +693,7 @@ export function NoteEditor() {
                         <RichTextEditor
                             key={segment.id}
                             value={segment.content}
-                            onChange={(val) => handleUpdateSegment(segment.id, val)}
+                            onChange={(val, caretOffset) => handleUpdateSegment(segment.id, val, caretOffset)}
                             onFocus={(el) => {
                                 activeEditorRef.current = el;
                             }}
@@ -558,6 +706,8 @@ export function NoteEditor() {
                             }}
                             placeholder={segments.length === 1 ? "Start writing..." : ""}
                             disabled={privacyMode}
+                            forcedCaretOffset={pendingCaretOffset}
+                            onCaretRestored={() => setPendingCaretOffset(null)}
                         />
                     );
                 } else if (segment.type === 'code') {
